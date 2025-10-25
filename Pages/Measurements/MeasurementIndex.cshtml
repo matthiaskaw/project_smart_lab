@@ -6,11 +6,8 @@
 
 <h2>Measurements</h2>
 
-<div class="measurement-actions">
-    <a asp-page="/Measurements/AddMeasurement" class="btn btn-success">Add New Measurement</a>
-</div>
 
-<h3>Quick Start Measurement</h3>
+<h3>Start Measurement</h3>
 @if (Model.AvailableDevices.Any())
 {
     <div class="card mb-4">
@@ -44,45 +41,6 @@ else
     <div class="alert alert-info">
         No devices available. <a asp-page="/Settings/AddDevice">Add a device</a> to start measurements.
     </div>
-}
-
-<h3>Configured Measurements</h3>
-@if (Model.ConfiguredMeasurements.Any())
-{
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Device</th>
-                <th>Description</th>
-                <th>Created</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach(var configMeasurement in Model.ConfiguredMeasurements)
-            {
-                <tr>
-                    <td>@configMeasurement.MeasurementName</td>
-                    <td>@configMeasurement.DeviceName (ProxyDevice)</td>
-                    <td>@configMeasurement.Description</td>
-                    <td>@configMeasurement.CreatedDate.ToString("yyyy-MM-dd HH:mm")</td>
-                    <td>
-                        <div class="button-container">
-                            <a href="/measurements/configure/@configMeasurement.DeviceId?name=@Uri.EscapeDataString(configMeasurement.MeasurementName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"))" class="btn btn-primary btn-sm">Configure & Start</a>
-                            <form method="post" asp-page-handler="RemoveConfiguredMeasurement" asp-route-configId="@configMeasurement.MeasurementConfigId" style="display: inline;">
-                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to remove this measurement?')">Remove</button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
-else
-{
-    <p>No configured measurements. <a asp-page="/Measurements/AddMeasurement">Add your first measurement</a>.</p>
 }
 
 <h3>Running Measurements</h3>
