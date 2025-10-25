@@ -1,187 +1,187 @@
 using SmartLab.Domains.Device.Interfaces;
 using SmartLab.Domains.Device.Models;
+using SmartLab.Domains.Data.Database;
+using SmartLab.Domains.Data.Models;
 using Microsoft.Extensions.Logging;
-using SmartLab.Domains.Core.Services;
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace SmartLab.Domains.Device.Services
 {
     public class DeviceRepository : IDeviceRepository
     {
+        private readonly SmartLabDbContext _context;
         private readonly ILogger<DeviceRepository> _logger;
-        private readonly string _devicesFilename;
-        private readonly SemaphoreSlim _fileLock;
 
-        public DeviceRepository(ILogger<DeviceRepository> logger)
+        public DeviceRepository(SmartLabDbContext context, ILogger<DeviceRepository> logger)
         {
-            _logger = logger;
-            _devicesFilename = SettingsService.Instance.GetSettingByKey(ESettings.DeviceFilename);
-            _fileLock = new SemaphoreSlim(1, 1);
+            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public async Task<IEnumerable<DeviceConfiguration>> GetAllAsync()
         {
-            await _fileLock.WaitAsync();
             try
             {
-                if (!File.Exists(_devicesFilename))
-                {
-                    _logger.LogWarning("Device configuration file not found: {FileName}", _devicesFilename);
-                    return Enumerable.Empty<DeviceConfiguration>();
-                }
+                var entities = await _context.DeviceConfigurations
+                    .Where(d => d.IsActive)
+                    .OrderBy(d => d.Name)
+                    .AsNoTracking()
+                    .ToListAsync();
 
-                var jsonString = await File.ReadAllTextAsync(_devicesFilename);
-                if (string.IsNullOrWhiteSpace(jsonString) || jsonString.Trim() == "[]")
-                {
-                    return Enumerable.Empty<DeviceConfiguration>();
-                }
-
-                var options = new JsonSerializerOptions 
-                {
-                    PropertyNameCaseInsensitive = true,
-                    PropertyNamingPolicy = null, // Don't convert property names
-                    Converters = { new JsonStringEnumConverter() }
-                };
-                
-                var configurations = JsonSerializer.Deserialize<DeviceConfiguration[]>(jsonString, options);
-                return configurations ?? Enumerable.Empty<DeviceConfiguration>();
+                return entities.Select(MapToDeviceConfiguration);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to load device configurations from {FileName}", _devicesFilename);
+                _logger.LogError(ex, "Failed to load device configurations from database");
                 throw;
-            }
-            finally
-            {
-                _fileLock.Release();
             }
         }
 
         public async Task<DeviceConfiguration?> GetByIdAsync(Guid id)
         {
-            var configurations = await GetAllAsync();
-            return configurations.FirstOrDefault(c => c.DeviceID == id);
+            try
+            {
+                var entity = await _context.DeviceConfigurations
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(d => d.Id == id);
+
+                return entity != null ? MapToDeviceConfiguration(entity) : null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to load device configuration {DeviceId} from database", id);
+                throw;
+            }
         }
 
         public async Task SaveAsync(DeviceConfiguration config)
         {
-            await _fileLock.WaitAsync();
             try
             {
-                var configurations = await GetAllInternalAsync();
-                
-                var existingIndex = configurations.FindIndex(c => c.DeviceID == config.DeviceID);
-                if (existingIndex >= 0)
+                var entity = await _context.DeviceConfigurations.FindAsync(config.DeviceID);
+
+                if (entity != null)
                 {
-                    configurations[existingIndex] = config;
+                    // Update existing
+                    entity.Name = config.DeviceName ?? string.Empty;
+                    entity.DeviceType = config.DeviceIdentifier ?? "Unknown";
+                    entity.Description = $"Device: {config.DeviceName}";
+                    entity.IsActive = true;
+                    entity.ModifiedDate = DateTime.UtcNow;
+                    entity.ConfigurationJson = JsonSerializer.Serialize(config);
+
+                    _context.DeviceConfigurations.Update(entity);
                     _logger.LogInformation("Updated device configuration for {DeviceId}", config.DeviceID);
                 }
                 else
                 {
-                    configurations.Add(config);
+                    // Create new
+                    entity = new DeviceConfigurationEntity
+                    {
+                        Id = config.DeviceID,
+                        Name = config.DeviceName ?? string.Empty,
+                        DeviceType = config.DeviceIdentifier ?? "Unknown",
+                        Description = $"Device: {config.DeviceName}",
+                        IsActive = true,
+                        CreatedDate = DateTime.UtcNow,
+                        ModifiedDate = DateTime.UtcNow,
+                        ConfigurationJson = JsonSerializer.Serialize(config)
+                    };
+
+                    await _context.DeviceConfigurations.AddAsync(entity);
                     _logger.LogInformation("Added new device configuration for {DeviceId}", config.DeviceID);
                 }
 
-                await SaveAllInternalAsync(configurations);
+                await _context.SaveChangesAsync();
             }
-            finally
+            catch (Exception ex)
             {
-                _fileLock.Release();
+                _logger.LogError(ex, "Failed to save device configuration {DeviceId}", config.DeviceID);
+                throw;
             }
         }
 
         public async Task DeleteAsync(Guid id)
         {
-            await _fileLock.WaitAsync();
             try
             {
-                var configurations = await GetAllInternalAsync();
-                var removedCount = configurations.RemoveAll(c => c.DeviceID == id);
-                
-                if (removedCount > 0)
+                var entity = await _context.DeviceConfigurations.FindAsync(id);
+
+                if (entity != null)
                 {
-                    await SaveAllInternalAsync(configurations);
-                    _logger.LogInformation("Deleted device configuration for {DeviceId}", id);
+                    // Soft delete by marking as inactive
+                    entity.IsActive = false;
+                    entity.ModifiedDate = DateTime.UtcNow;
+
+                    _context.DeviceConfigurations.Update(entity);
+                    await _context.SaveChangesAsync();
+
+                    _logger.LogInformation("Deleted (soft) device configuration for {DeviceId}", id);
                 }
                 else
                 {
                     _logger.LogWarning("Device configuration not found for deletion: {DeviceId}", id);
                 }
             }
-            finally
+            catch (Exception ex)
             {
-                _fileLock.Release();
+                _logger.LogError(ex, "Failed to delete device configuration {DeviceId}", id);
+                throw;
             }
         }
 
         public async Task SaveAllAsync(IEnumerable<DeviceConfiguration> configurations)
         {
-            await _fileLock.WaitAsync();
             try
             {
-                await SaveAllInternalAsync(configurations.ToList());
-            }
-            finally
-            {
-                _fileLock.Release();
-            }
-        }
-
-        private async Task<List<DeviceConfiguration>> GetAllInternalAsync()
-        {
-            try
-            {
-                if (!File.Exists(_devicesFilename))
+                foreach (var config in configurations)
                 {
-                    _logger.LogInformation("Device configuration file does not exist, returning empty list");
-                    return new List<DeviceConfiguration>();
+                    await SaveAsync(config);
                 }
 
-                var jsonString = await File.ReadAllTextAsync(_devicesFilename);
-                if (string.IsNullOrWhiteSpace(jsonString))
-                {
-                    return new List<DeviceConfiguration>();
-                }
-
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true,
-                    PropertyNamingPolicy = null,
-                    Converters = { new JsonStringEnumConverter() }
-                };
-
-                var configurations = JsonSerializer.Deserialize<DeviceConfiguration[]>(jsonString, options);
-                return configurations?.ToList() ?? new List<DeviceConfiguration>();
+                _logger.LogInformation("Saved {Count} device configurations to database", configurations.Count());
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to load device configurations from {FileName}", _devicesFilename);
+                _logger.LogError(ex, "Failed to save multiple device configurations");
                 throw;
             }
         }
 
-        private async Task SaveAllInternalAsync(List<DeviceConfiguration> configurations)
+        private DeviceConfiguration MapToDeviceConfiguration(DeviceConfigurationEntity entity)
         {
             try
             {
-                var options = new JsonSerializerOptions 
-                { 
-                    WriteIndented = true,
-                    PropertyNamingPolicy = null, // Keep original property names for compatibility
-                    Converters = { new JsonStringEnumConverter() }
+                // Try to deserialize from ConfigurationJson first
+                if (!string.IsNullOrWhiteSpace(entity.ConfigurationJson) && entity.ConfigurationJson != "{}")
+                {
+                    var config = JsonSerializer.Deserialize<DeviceConfiguration>(entity.ConfigurationJson);
+                    if (config != null)
+                    {
+                        return config;
+                    }
+                }
+
+                // Fallback: create from basic fields
+                return new DeviceConfiguration
+                {
+                    DeviceID = entity.Id,
+                    DeviceName = entity.Name,
+                    DeviceIdentifier = entity.DeviceType
                 };
-                
-                var jsonString = JsonSerializer.Serialize(configurations.ToArray(), options);
-                await File.WriteAllTextAsync(_devicesFilename, jsonString);
-                
-                _logger.LogInformation("Saved {Count} device configurations to {FileName}", 
-                    configurations.Count, _devicesFilename);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to save device configurations to {FileName}", _devicesFilename);
-                throw;
+                _logger.LogWarning(ex, "Failed to deserialize device configuration {DeviceId}, using fallback", entity.Id);
+
+                // Fallback
+                return new DeviceConfiguration
+                {
+                    DeviceID = entity.Id,
+                    DeviceName = entity.Name,
+                    DeviceIdentifier = entity.DeviceType
+                };
             }
         }
     }

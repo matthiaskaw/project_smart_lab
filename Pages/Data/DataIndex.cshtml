@@ -1,9 +1,7 @@
 @page
 @model IndexDatasetsModel
 @{
-
         ViewData["Title"] = "Data Page";
-
 }
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1>Datasets</h1>
@@ -20,12 +18,15 @@
 }
 else
 {
-    <table class="table">
+    <table class="table table-striped">
         <thead>
             <tr>
                 <th>Date</th>
                 <th>Name</th>
                 <th>Description</th>
+                <th>Source</th>
+                <th>Data Points</th>
+                <th>Parameters</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -33,20 +34,22 @@ else
             @foreach (var dataset in Model.Datasets)
             {
                 <tr>
-                    <td>@dataset.Value.DatasetDate.ToString("yyyy-MM-dd HH:mm:ss")</td>
-                    <td>@dataset.Value.DatasetName</td>
-                    <td>@dataset.Value.DatasetDiscription</td>
+                    <td>@dataset.CreatedDate.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                    <td>@dataset.Name</td>
+                    <td>@dataset.Description</td>
+                    <td>@dataset.DataSource</td>
+                    <td>@dataset.DataPointCount</td>
+                    <td>@dataset.ParameterCount (@string.Join(", ", dataset.ParameterNames))</td>
                     <td>
                         <div class="button-container">
                         <!-- Action buttons -->
-                            <form method="post" asp-page-handler="Delete" asp-route-id="@dataset.Value.DatasetID">
-                                <button type="submit" class="btn btn-danger">Delete</button>
+                            <form method="post" asp-page-handler="Delete" asp-route-id="@dataset.Id" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this dataset?');">Delete</button>
                             </form>
-                            <form method="post" asp-page-handler="View" asp-route-id="@dataset.Value.DatasetID">
-                                <button type="submit" class="btn btn-primary">View</button>
+                            <form method="post" asp-page-handler="View" asp-route-id="@dataset.Id" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-primary">View</button>
                             </form>
-                        </div>                        
-
+                        </div>
                     </td>
                 </tr>
             }

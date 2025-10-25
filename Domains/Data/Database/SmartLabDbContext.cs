@@ -14,6 +14,21 @@ namespace SmartLab.Domains.Data.Database
         public DbSet<ValidationErrorEntity> ValidationErrors { get; set; }
         public DbSet<DeviceConfigurationEntity> DeviceConfigurations { get; set; }
 
+        /// <summary>
+        /// Configures SQLite PRAGMA settings for optimal performance.
+        /// Should be called after database migrations have been applied.
+        /// </summary>
+        public void ConfigureSqlitePragmas()
+        {
+            // Configure SQLite PRAGMA settings for optimal performance
+            Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");           // Write-Ahead Logging for better concurrency
+            Database.ExecuteSqlRaw("PRAGMA synchronous=NORMAL;");         // Balance between speed and safety
+            Database.ExecuteSqlRaw("PRAGMA cache_size=-64000;");          // 64MB cache
+            Database.ExecuteSqlRaw("PRAGMA foreign_keys=ON;");            // Enable foreign key constraints
+            Database.ExecuteSqlRaw("PRAGMA temp_store=MEMORY;");          // Store temp tables in memory
+            Database.ExecuteSqlRaw("PRAGMA busy_timeout=5000;");          // Wait up to 5 seconds on locks
+        }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

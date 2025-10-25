@@ -1,47 +1,35 @@
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using System.Collections.Generic;
-using System.IO;
-using System.Collections.Concurrent;
-using System.Text.Json;
-using SmartLab.Domains.Data.Interfaces;
-using SmartLab.Domains.Data.Services;
-using SmartLab.Domains.Core.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Extensions.Logging;
+using SmartLab.Domains.Data.Interfaces;
+using SmartLab.Domains.Data.Models;
 
 public class IndexDatasetsModel : PageModel
 {
-    private readonly IDataController _dataController;
+    private readonly IDataService _dataService;
     private readonly ILogger<IndexDatasetsModel> _logger;
 
-    // Constructor injection - ASP.NET Core will provide these automatically
     public IndexDatasetsModel(
-        IDataController dataController,
+        IDataService dataService,
         ILogger<IndexDatasetsModel> logger)
     {
-        _dataController = dataController ?? throw new ArgumentNullException(nameof(dataController));
+        _dataService = dataService ?? throw new ArgumentNullException(nameof(dataService));
         _logger = logger;
     }
 
-    public ConcurrentDictionary<Guid, IDataset> Datasets { get; set; } = new();
+    public List<DatasetSummary> Datasets { get; set; } = new();
 
     public async Task OnGetAsync()
     {
         try
         {
-            Datasets = await _dataController.GetAllDatasetsAsync();
-            _logger.LogInformation("Loaded {Count} datasets", Datasets.Count);
-
-            foreach (KeyValuePair<Guid, IDataset> kvpair in Datasets)
-            {
-                _logger.LogInformation("DataIndex.OnGet: {DatasetId}", kvpair.Key);
-            }
+            Datasets = await _dataService.GetDatasetSummariesAsync();
+            _logger.LogInformation("Loaded {Count} datasets from database", Datasets.Count);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to load datasets");
-            Datasets = new ConcurrentDictionary<Guid, IDataset>();
+            Datasets = new List<DatasetSummary>();
         }
     }
 
@@ -49,9 +37,15 @@ public class IndexDatasetsModel : PageModel
     {
         try
         {
-            // TODO: Add DeleteDatasetAsync method to IDataController interface
-            await _dataController.DeleteDataAsync(id);
-            //_logger.LogWarning("Delete functionality not yet implemented for dataset {DatasetId}", id);
+            var result = await _dataService.DeleteDatasetAsync(id);
+            if (result)
+            {
+                _logger.LogInformation("Successfully deleted dataset {DatasetId}", id);
+            }
+            else
+            {
+                _logger.LogWarning("Dataset {DatasetId} not found for deletion", id);
+            }
             return RedirectToPage();
         }
         catch (Exception ex)
@@ -63,7 +57,7 @@ public class IndexDatasetsModel : PageModel
 
     public IActionResult OnPostView(Guid id)
     {
-        _logger.LogInformation("IndexDatasetsModel.OnPostView: Viewing dataset with ID = {DatasetId}", id);
-        return RedirectToPage();
+        _logger.LogInformation("Viewing dataset with ID = {DatasetId}", id);
+        return RedirectToPage("ViewDataset", new { id });
     }
 }

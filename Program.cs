@@ -56,54 +56,39 @@ builder.Services.AddSingleton<IConfiguredMeasurementService, ConfiguredMeasureme
 builder.Services.AddScoped<IDataService, DataService>();
 builder.Services.AddScoped<IDataImportService, DataImportService>();
 builder.Services.AddScoped<IDataValidationService, DataValidationService>();
-builder.Services.AddSingleton<IDataController, SmartLab.Domains.Data.Services.DataController>();
 
 // Add services to the container.
 builder.Services.AddRazorPages();
 
 var app = builder.Build();
 
-// Initialize database and migrate data
-var scope = app.Services.CreateScope();
-try
+// Initialize database
+using (var scope = app.Services.CreateScope())
 {
-    // Initialize database
-    var dbContext = scope.ServiceProvider.GetRequiredService<SmartLabDbContext>();
-    await dbContext.Database.EnsureCreatedAsync();
-    app.Logger.LogInformation("Database initialized successfully");
+    try
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<SmartLabDbContext>();
 
-    // Migrate existing data from JSON files
-    var dataService = scope.ServiceProvider.GetRequiredService<IDataService>();
-    var dataCoreFile = settingsService.GetSettingByKey(SmartLab.Domains.Core.Services.ESettings.DataCoreFile);
-    var datasetDirectory = settingsService.GetSettingByKey(SmartLab.Domains.Core.Services.ESettings.DataSetDirectory);
-    
-    if (File.Exists(dataCoreFile))
-    {
-        await dataService.MigrateFromJsonAsync(dataCoreFile, datasetDirectory);
-        app.Logger.LogInformation("Data migration completed successfully");
-    }
+        // Apply database migrations
+        await dbContext.Database.MigrateAsync();
+        app.Logger.LogInformation("Database migrations applied successfully");
 
-    // Initialize device controller and load existing devices
-    var deviceController = scope.ServiceProvider.GetRequiredService<IDeviceController>();
-    if (deviceController is DeviceController dc)
-    {
-        await dc.LoadDevicesAsync();
-        app.Logger.LogInformation("Successfully loaded existing devices");
+        // Configure SQLite PRAGMA settings for optimal performance
+        dbContext.ConfigureSqlitePragmas();
+        app.Logger.LogInformation("SQLite PRAGMA settings configured");
+
+        // Initialize device controller and load existing devices from database
+        var deviceController = scope.ServiceProvider.GetRequiredService<IDeviceController>();
+        if (deviceController is DeviceController dc)
+        {
+            await dc.LoadDevicesAsync();
+            app.Logger.LogInformation("Successfully loaded existing devices from database");
+        }
     }
-}
-catch (Exception ex)
-{
-    app.Logger.LogError(ex, "Failed to initialize database or load existing data during startup");
-}
-finally
-{
-    if (scope is IAsyncDisposable asyncDisposable)
+    catch (Exception ex)
     {
-        await asyncDisposable.DisposeAsync();
-    }
-    else
-    {
-        scope.Dispose();
+        app.Logger.LogError(ex, "Failed to initialize database during startup");
+        throw; // Fail fast if database initialization fails
     }
 }
 

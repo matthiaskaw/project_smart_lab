@@ -1,7 +1,6 @@
 using SmartLab.Domains.Device.Interfaces;
 using SmartLab.Domains.Measurement.Interfaces;
 using SmartLab.Domains.Core.Services;
-using SmartLab.Domains.Data.Interfaces;
 
 namespace SmartLab.Domains.Measurement.Models
 {
@@ -15,7 +14,6 @@ namespace SmartLab.Domains.Measurement.Models
         public string MeasurementName { get; set; } = string.Empty;
         public bool IsCancelled => _isCancelled;
         public IDevice Device { get; }
-        private IDataController _dataController;
         public event EventHandler<(Guid measurementID, List<string> data)>? DataAvailable;
 
         protected virtual void OnDataAvailable(List<string> data)

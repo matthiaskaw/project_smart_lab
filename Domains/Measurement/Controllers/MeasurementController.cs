@@ -13,20 +13,20 @@ namespace SmartLab.Domains.Measurement.Controllers
     {
         private readonly IMeasurementFactory _factory;
         private readonly IMeasurementRegistry _registry;
-        private readonly IDataController _dataController;
+        private readonly IDataService _dataService;
         private readonly IDeviceController _deviceController;
         private readonly ILogger<MeasurementController> _logger;
 
         public MeasurementController(
             IMeasurementFactory factory,
-            IMeasurementRegistry registry, 
-            IDataController dataController,
+            IMeasurementRegistry registry,
+            IDataService dataService,
             IDeviceController deviceController,
             ILogger<MeasurementController> logger)
         {
             _factory = factory ?? throw new ArgumentNullException(nameof(factory));
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
-            _dataController = dataController ?? throw new ArgumentNullException(nameof(dataController));
+            _dataService = dataService ?? throw new ArgumentNullException(nameof(dataService));
             _deviceController = deviceController ?? throw new ArgumentNullException(nameof(deviceController));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
@@ -67,23 +67,38 @@ namespace SmartLab.Domains.Measurement.Controllers
                     return;
                 }
 
-                // Create and save dataset
-                // var dataset = new Dataset
-                // {
-                //     DatasetID = args.measurementID,
-                //     DatasetName = measurement.MeasurementName,
-                //     DatasetDate = DateTime.Now,
-                //     DatasetDiscription = "Dataset for testing"
-                // };
-                IDataset dataset = new Dataset();
-                dataset.DatasetID = args.measurementID;
-                dataset.DatasetName = measurement.MeasurementName;
-                dataset.DatasetDate = DateTime.Now;
-                dataset.DatasetDiscription = "Dataset for testing";
-                dataset.SaveDataset(args.data);
+                // Create dataset entity
+                var dataset = new DatasetEntity
+                {
+                    Id = args.measurementID,
+                    Name = measurement.MeasurementName,
+                    Description = "Device measurement data",
+                    CreatedDate = measurement.MeasurementDate,
+                    DataSource = DataSource.Device,
+                    EntryMethod = EntryMethod.DeviceMeasurement,
+                    DeviceId = measurement.Device.DeviceID
+                };
 
-                await _dataController.AddDatasetAsync(dataset);
-                await _dataController.WriteDatasetsAsync();
+                var datasetId = await _dataService.CreateDatasetAsync(dataset);
+
+                // Convert string data to data points
+                var dataPoints = new List<DataPointEntity>();
+                for (int i = 0; i < args.data.Count; i++)
+                {
+                    dataPoints.Add(new DataPointEntity
+                    {
+                        DatasetId = datasetId,
+                        Timestamp = dataset.CreatedDate.AddSeconds(i),
+                        ParameterName = "Value",
+                        Value = args.data[i],
+                        RowIndex = i
+                    });
+                }
+
+                await _dataService.AddDataPointsAsync(datasetId, dataPoints);
+
+                _logger.LogInformation("Saved measurement data for {MeasurementId} with {DataPointCount} data points",
+                    args.measurementID, dataPoints.Count);
 
                 _logger.LogInformation("Unregistering completed measurement {MeasurementId}", args.measurementID);
                 await _registry.UnregisterMeasurementAsync(args.measurementID);
@@ -93,6 +108,7 @@ namespace SmartLab.Domains.Measurement.Controllers
                 _logger.LogError(ex, "Error processing measurement data for {MeasurementId}", args.measurementID);
             }
         }
+
         public async Task<Guid> StartMeasurementAsync(Guid deviceId, string name, CancellationToken cancellationToken = default)
         {
             return await StartMeasurementAsync(deviceId, name, new Dictionary<string, object>(), cancellationToken);
@@ -112,21 +128,21 @@ namespace SmartLab.Domains.Measurement.Controllers
                 measurement.MeasurementName = name;
                 measurement.MeasurementDate = DateTime.Now;
                 measurement.DataAvailable += OnDataAvailable;
-                               
+
                 // Set parameters if the measurement supports them
                 if (measurement is ParameterizedDeviceMeasurement paramMeasurement)
                 {
                     paramMeasurement.Parameters = parameters;
                 }
-                
+
                 await _registry.RegisterMeasurementAsync(measurement);
-                
+
                 // Start the measurement
                 _ = measurement.RunAsync(); // Fire and forget, but handle completion via event
-                
-                _logger.LogInformation("Started measurement on device {DeviceName} with ID {MeasurementId} and {ParameterCount} parameters", 
+
+                _logger.LogInformation("Started measurement on device {DeviceName} with ID {MeasurementId} and {ParameterCount} parameters",
                     device.DeviceName, measurement.MeasurementID, parameters.Count);
-                
+
                 return measurement.MeasurementID;
             }
             catch (Exception ex)
@@ -135,6 +151,7 @@ namespace SmartLab.Domains.Measurement.Controllers
                 throw;
             }
         }
+
         public async Task<IMeasurement?> GetMeasurementAsync(Guid measurementID)
         {
             return await _registry.GetMeasurementAsync(measurementID);
@@ -159,14 +176,14 @@ namespace SmartLab.Domains.Measurement.Controllers
                 if (device is IParameterizedDevice paramDevice && paramDevice.SupportsParameterDiscovery)
                 {
                     _logger.LogInformation("Getting parameters for device {DeviceName}", device.DeviceName);
-                    
+
                     // Use cached parameters if available
                     var parameters = await paramDevice.GetRequiredParametersAsync();
-                    _logger.LogInformation("Retrieved {Count} parameters for device {DeviceName}", 
+                    _logger.LogInformation("Retrieved {Count} parameters for device {DeviceName}",
                         parameters.Count, device.DeviceName);
                     return parameters;
                 }
-                
+
                 _logger.LogInformation("Device {DeviceName} does not support parameter discovery", device.DeviceName);
                 return new List<MeasurementParameter>();
             }
@@ -176,5 +193,5 @@ namespace SmartLab.Domains.Measurement.Controllers
                 throw;
             }
         }
-    }         
+    }
 }
