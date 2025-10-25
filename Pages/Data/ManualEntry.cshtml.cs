@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using SmartHome.Domains.Data.Interfaces;
-using SmartHome.Domains.Data.Models;
+using SmartLab.Domains.Data.Interfaces;
+using SmartLab.Domains.Data.Models;
 
-namespace SmartHome.Pages.Data
+namespace SmartLab.Pages.Data
 {
     [BindProperties]
     public class ManualEntryModel : PageModel

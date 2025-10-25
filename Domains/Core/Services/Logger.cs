@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
-namespace LabManager.Domains.Core.Services{
+namespace SmartLab.Domains.Core.Services{
 
 
     public class Logger

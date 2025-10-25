@@ -1,5 +1,5 @@
 
-namespace LabManager.Domains.Core.Services{
+namespace SmartLab.Domains.Core.Services{
     
     
     public enum ESettings{

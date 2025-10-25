@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using SmartHome.Domains.Device.Interfaces;
-using SmartHome.Domains.Measurement.Services;
-using SmartHome.Domains.Measurement.Models;
-using SmartHome.Domains.Core.Services;
+using SmartLab.Domains.Device.Interfaces;
+using SmartLab.Domains.Measurement.Services;
+using SmartLab.Domains.Measurement.Models;
+using SmartLab.Domains.Core.Services;
 
 namespace smarthome_webserver.Pages.Measurements
 {

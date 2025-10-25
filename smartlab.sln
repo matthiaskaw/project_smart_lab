@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.002.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "smarthome_webserver", "smarthome_webserver.csproj", "{8BA3D632-F60D-448D-93E6-AB2C07A34181}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "smartlab", "smartlab.csproj", "{8BA3D632-F60D-448D-93E6-AB2C07A34181}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
