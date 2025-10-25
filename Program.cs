@@ -12,7 +12,7 @@ using SmartLab.Domains.Measurement.Services;
 using SmartLab.Domains.Measurement.Controllers;
 using SmartLab.Domains.Data.Interfaces;
 using SmartLab.Domains.Data.Services;
-using SmartLab.Domains.Data.Database;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Hosting;
@@ -30,8 +30,6 @@ var settingsService = SmartLab.Domains.Core.Services.SettingsService.Instance;
 var dataDirectory = settingsService.GetSettingByKey(SmartLab.Domains.Core.Services.ESettings.DataSetDirectory);
 var dbPath = Path.Combine(Path.GetDirectoryName(dataDirectory) ?? "", "smartlab.db");
 
-builder.Services.AddDbContext<SmartLabDbContext>(options =>
-    options.UseSqlite($"Data Source={dbPath}"));
 
 // Register services for dependency injection
 builder.Services.AddSingleton<SmartLab.Domains.Core.Services.SettingsService>(SmartLab.Domains.Core.Services.SettingsService.Instance);
@@ -52,10 +50,6 @@ builder.Services.AddSingleton<IMeasurementRegistry, MeasurementRegistry>();
 builder.Services.AddScoped<IMeasurementController, MeasurementController>();
 builder.Services.AddSingleton<IConfiguredMeasurementService, ConfiguredMeasurementService>();
 
-// Register data services
-builder.Services.AddScoped<IDataService, DataService>();
-builder.Services.AddScoped<IDataImportService, DataImportService>();
-builder.Services.AddScoped<IDataValidationService, DataValidationService>();
 builder.Services.AddSingleton<IDataController, SmartLab.Domains.Data.Services.DataController>();
 
 // Add services to the container.
@@ -67,21 +61,7 @@ var app = builder.Build();
 var scope = app.Services.CreateScope();
 try
 {
-    // Initialize database
-    var dbContext = scope.ServiceProvider.GetRequiredService<SmartLabDbContext>();
-    await dbContext.Database.EnsureCreatedAsync();
-    app.Logger.LogInformation("Database initialized successfully");
 
-    // Migrate existing data from JSON files
-    var dataService = scope.ServiceProvider.GetRequiredService<IDataService>();
-    var dataCoreFile = settingsService.GetSettingByKey(SmartLab.Domains.Core.Services.ESettings.DataCoreFile);
-    var datasetDirectory = settingsService.GetSettingByKey(SmartLab.Domains.Core.Services.ESettings.DataSetDirectory);
-    
-    if (File.Exists(dataCoreFile))
-    {
-        await dataService.MigrateFromJsonAsync(dataCoreFile, datasetDirectory);
-        app.Logger.LogInformation("Data migration completed successfully");
-    }
 
     // Initialize device controller and load existing devices
     var deviceController = scope.ServiceProvider.GetRequiredService<IDeviceController>();
