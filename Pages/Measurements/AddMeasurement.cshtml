@@ -1,0 +1,56 @@
+@page
+@model smarthome_webserver.Pages.Measurements.AddMeasurementModel
+@{
+    ViewData["Title"] = "Add Measurement";
+}
+
+<h2>Add New Measurement</h2>
+
+<form method="post">
+    <div asp-validation-summary="All" class="text-danger"></div>
+    
+    <div class="grid-addmeasurement">
+        <label asp-for="MeasurementName">Measurement Name:</label>
+        <input asp-for="MeasurementName" class="form-control" />
+        <span asp-validation-for="MeasurementName" class="text-danger"></span>
+        
+        <label asp-for="SelectedDeviceId">Select Device:</label>
+        <select asp-for="SelectedDeviceId" asp-items="Model.AvailableDevices" class="form-control">
+            <option value="">-- Select a Device --</option>
+        </select>
+        <span asp-validation-for="SelectedDeviceId" class="text-danger"></span>
+        
+        <label asp-for="Description">Description (Optional):</label>
+        <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+        <span asp-validation-for="Description" class="text-danger"></span>
+        
+        <div></div>
+        <button type="submit" class="btn btn-primary">Add Measurement</button>
+        <a asp-page="/Measurements/MeasurementIndex" class="btn btn-secondary">Cancel</a>
+    </div>
+</form>
+
+<style>
+.grid-addmeasurement {
+    display: grid;
+    grid-template-columns: 200px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    max-width: 600px;
+}
+
+.grid-addmeasurement label {
+    font-weight: bold;
+}
+
+.grid-addmeasurement textarea,
+.grid-addmeasurement input,
+.grid-addmeasurement select {
+    width: 100%;
+}
+
+.text-danger {
+    grid-column: 2;
+    font-size: 0.875em;
+}
+</style>

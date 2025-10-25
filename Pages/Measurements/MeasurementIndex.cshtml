@@ -1,0 +1,170 @@
+@page
+@model smarthome_webserver.Pages.Measurements.MeasurementIndex
+@{
+    ViewData["Title"] = "Measurements";
+}
+
+<h2>Measurements</h2>
+
+<div class="measurement-actions">
+    <a asp-page="/Measurements/AddMeasurement" class="btn btn-success">Add New Measurement</a>
+</div>
+
+<h3>Quick Start Measurement</h3>
+@if (Model.AvailableDevices.Any())
+{
+    <div class="card mb-4">
+        <div class="card-body">
+            <form id="quickStartForm">
+                <div class="row align-items-end">
+                    <div class="col-md-6">
+                        <label class="form-label">Select Device:</label>
+                        <select id="deviceSelect" name="deviceId" class="form-control" required>
+                            <option value="">-- Select a device --</option>
+                            @foreach(var device in Model.AvailableDevices)
+                            {
+                                <option value="@device.Value">@device.Text</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Measurement Name:</label>
+                        <input type="text" id="measurementName" name="name" class="form-control" placeholder="Optional custom name" />
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-success" onclick="startQuickMeasurement()">Configure & Start</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+else
+{
+    <div class="alert alert-info">
+        No devices available. <a asp-page="/Settings/AddDevice">Add a device</a> to start measurements.
+    </div>
+}
+
+<h3>Configured Measurements</h3>
+@if (Model.ConfiguredMeasurements.Any())
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Device</th>
+                <th>Description</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach(var configMeasurement in Model.ConfiguredMeasurements)
+            {
+                <tr>
+                    <td>@configMeasurement.MeasurementName</td>
+                    <td>@configMeasurement.DeviceName (ProxyDevice)</td>
+                    <td>@configMeasurement.Description</td>
+                    <td>@configMeasurement.CreatedDate.ToString("yyyy-MM-dd HH:mm")</td>
+                    <td>
+                        <div class="button-container">
+                            <a href="/measurements/configure/@configMeasurement.DeviceId?name=@Uri.EscapeDataString(configMeasurement.MeasurementName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"))" class="btn btn-primary btn-sm">Configure & Start</a>
+                            <form method="post" asp-page-handler="RemoveConfiguredMeasurement" asp-route-configId="@configMeasurement.MeasurementConfigId" style="display: inline;">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to remove this measurement?')">Remove</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>No configured measurements. <a asp-page="/Measurements/AddMeasurement">Add your first measurement</a>.</p>
+}
+
+<h3>Running Measurements</h3>
+@if (Model.RunningMeasurements.Any())
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Started</th>
+                <th>Name</th>
+                <th>Device</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach(var measurement in Model.RunningMeasurements)
+            {
+                <tr>
+                    <td>@measurement.MeasurementDate.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                    <td>@measurement.MeasurementName</td>
+                    <td>@measurement.Device.DeviceName (ProxyDevice)</td>
+                    <td>
+                        <div class="button-container">
+                            <form method="post" asp-page-handler="CancelMeasurement" asp-route-id="@measurement.MeasurementID" style="display: inline;">
+                                <button type="submit" class="btn btn-warning btn-sm">Cancel</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>No measurements currently running.</p>
+}
+
+
+<style>
+.measurement-actions {
+    margin-bottom: 20px;
+}
+
+.button-container {
+    display: flex;
+    gap: 5px;
+}
+</style>
+
+<script>
+function startQuickMeasurement() {
+    var deviceSelect = document.getElementById('deviceSelect');
+    var measurementName = document.getElementById('measurementName');
+    
+    if (!deviceSelect.value) {
+        alert('Please select a device first.');
+        return;
+    }
+    
+    var url = '/measurements/configure/' + deviceSelect.value;
+    if (measurementName.value) {
+        url += '?name=' + encodeURIComponent(measurementName.value);
+    }
+    
+    window.location.href = url;
+}
+
+// Auto-refresh when measurements complete
+function checkForMeasurementUpdates() {
+    fetch('/Measurements/MeasurementIndex?handler=CheckUpdates')
+        .then(response => response.json())
+        .then(data => {
+            if (data.shouldRefresh) {
+                location.reload();
+            }
+        })
+        .catch(error => {
+            console.log('Check for updates failed:', error);
+        });
+}
+
+// Check for updates every 3 seconds
+setInterval(checkForMeasurementUpdates, 3000);
+</script>

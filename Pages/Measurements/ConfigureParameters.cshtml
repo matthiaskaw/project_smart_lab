@@ -1,0 +1,243 @@
+@page "/measurements/configure/{deviceId:guid}"
+@using SmartHome.Domains.Measurement.Models
+@model smarthome_webserver.Pages.Measurements.ConfigureParametersModel
+@{
+    ViewData["Title"] = "Configure Measurement Parameters";
+}
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Configure Parameters for @Model.DeviceName</h4>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+                    {
+                        <div class="alert alert-danger">
+                            @Model.ErrorMessage
+                        </div>
+                    }
+
+                    @if (Model.Parameters?.Any() == true)
+                    {
+                        <form method="post">
+                            <input type="hidden" asp-for="DeviceId" />
+                            <input type="hidden" asp-for="DeviceName" />
+
+                            <div class="form-group mb-3">
+                                <label asp-for="MeasurementName" class="form-label">Measurement Name</label>
+                                <input asp-for="MeasurementName" class="form-control" placeholder="Enter measurement name" required />
+                            </div>
+
+                            <hr />
+                            <h5>Device Parameters</h5>
+
+                            @for (int i = 0; i < Model.Parameters.Count; i++)
+                            {
+                                <div class="card mb-3 parameter-card">
+                                    <div class="card-body">
+                                        <input type="hidden" asp-for="Parameters[i].Name" />
+                                        <input type="hidden" asp-for="Parameters[i].DisplayName" />
+                                        <input type="hidden" asp-for="Parameters[i].Description" />
+                                        <input type="hidden" asp-for="Parameters[i].Type" />
+                                        <input type="hidden" asp-for="Parameters[i].DefaultValue" />
+                                        <input type="hidden" asp-for="Parameters[i].IsRequired" />
+                                        <input type="hidden" asp-for="Parameters[i].Unit" />
+                                        @foreach (var rule in Model.Parameters[i].ValidationRules)
+                                        {
+                                            <input type="hidden" name="Parameters[@i].ValidationRules[@rule.Key]" value="@rule.Value" />
+                                        }
+
+                                        <div class="row">
+                                            <div class="col-md-8">
+                                                <label class="form-label fw-bold">
+                                                    @Model.Parameters[i].DisplayName
+                                                    @if (Model.Parameters[i].IsRequired)
+                                                    {
+                                                        <span class="text-danger">*</span>
+                                                    }
+                                                    @if (!string.IsNullOrEmpty(Model.Parameters[i].Unit))
+                                                    {
+                                                        <span class="badge bg-secondary ms-2">@Model.Parameters[i].Unit</span>
+                                                    }
+                                                </label>
+
+                                                @if (!string.IsNullOrEmpty(Model.Parameters[i].Description))
+                                                {
+                                                    <p class="text-muted mb-2"><small>@Model.Parameters[i].Description</small></p>
+                                                }
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="parameter-info">
+                                                    <small class="text-muted">
+                                                        <strong>Type:</strong> @Model.Parameters[i].Type<br>
+                                                        @if (Model.Parameters[i].ValidationRules.ContainsKey("min") || Model.Parameters[i].ValidationRules.ContainsKey("max"))
+                                                        {
+                                                            <strong>Range:</strong> 
+                                                            @(Model.Parameters[i].ValidationRules.ContainsKey("min") ? Model.Parameters[i].ValidationRules["min"] : "any") 
+                                                            <text>to</text>
+                                                            @(Model.Parameters[i].ValidationRules.ContainsKey("max") ? Model.Parameters[i].ValidationRules["max"] : "any")
+                                                            @if (!string.IsNullOrEmpty(Model.Parameters[i].Unit))
+                                                            {
+                                                                <text> @Model.Parameters[i].Unit</text>
+                                                            }
+                                                            <br>
+                                                        }
+                                                        <strong>Default:</strong> @Model.Parameters[i].DefaultValue
+                                                        @if (!string.IsNullOrEmpty(Model.Parameters[i].Unit))
+                                                        {
+                                                            <text> @Model.Parameters[i].Unit</text>
+                                                        }
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    @switch (Model.Parameters[i].Type)
+                                    {
+                                        case ParameterType.String:
+                                            @if (Model.Parameters[i].ValidationRules.ContainsKey("options"))
+                                            {
+                                                var options = Model.Parameters[i].ValidationRules["options"].ToString()?.Split(',') ?? Array.Empty<string>();
+                                                <select asp-for="ParameterValues[i]" class="form-control" required="@Model.Parameters[i].IsRequired">
+                                                    <option value="">-- Select Option --</option>
+                                                    @foreach (var option in options)
+                                                    {
+                                                        <option value="@option.Trim()" selected="@(option.Trim() == Model.Parameters[i].DefaultValue?.ToString())">@option.Trim()</option>
+                                                    }
+                                                </select>
+                                            }
+                                            else
+                                            {
+                                                <input type="text" asp-for="ParameterValues[i]" class="form-control" 
+                                                       value="@Model.Parameters[i].DefaultValue" 
+                                                       required="@Model.Parameters[i].IsRequired" 
+                                                       maxlength="@(Model.Parameters[i].ValidationRules.ContainsKey("maxLength") ? Model.Parameters[i].ValidationRules["maxLength"] : "")"
+                                                       minlength="@(Model.Parameters[i].ValidationRules.ContainsKey("minLength") ? Model.Parameters[i].ValidationRules["minLength"] : "")" />
+                                            }
+                                            break;
+
+                                        case ParameterType.Integer:
+                                            <input type="number" asp-for="ParameterValues[i]" class="form-control" 
+                                                   value="@Model.Parameters[i].DefaultValue" 
+                                                   required="@Model.Parameters[i].IsRequired"
+                                                   min="@(Model.Parameters[i].ValidationRules.ContainsKey("min") ? Model.Parameters[i].ValidationRules["min"] : "")"
+                                                   max="@(Model.Parameters[i].ValidationRules.ContainsKey("max") ? Model.Parameters[i].ValidationRules["max"] : "")"
+                                                   step="1" />
+                                            break;
+
+                                        case ParameterType.Double:
+                                            <input type="number" asp-for="ParameterValues[i]" class="form-control" 
+                                                   value="@Model.Parameters[i].DefaultValue" 
+                                                   required="@Model.Parameters[i].IsRequired"
+                                                   min="@(Model.Parameters[i].ValidationRules.ContainsKey("min") ? Model.Parameters[i].ValidationRules["min"] : "")"
+                                                   max="@(Model.Parameters[i].ValidationRules.ContainsKey("max") ? Model.Parameters[i].ValidationRules["max"] : "")"
+                                                   step="0.01" />
+                                            break;
+
+                                        case ParameterType.Boolean:
+                                            <div class="form-check">
+                                                <input type="checkbox" asp-for="ParameterValues[i]" class="form-check-input" 
+                                                       value="true" checked="@(Model.Parameters[i].DefaultValue?.ToString() == "True")" />
+                                                <label class="form-check-label" asp-for="ParameterValues[i]">
+                                                    Enable this option
+                                                </label>
+                                            </div>
+                                            break;
+
+                                        case ParameterType.DateTime:
+                                            <input type="datetime-local" asp-for="ParameterValues[i]" class="form-control" 
+                                                   value="@(Model.Parameters[i].DefaultValue is DateTime dt ? dt.ToString("yyyy-MM-ddTHH:mm") : DateTime.Now.ToString("yyyy-MM-ddTHH:mm"))" 
+                                                   required="@Model.Parameters[i].IsRequired" />
+                                            break;
+                                    }
+                                    </div>
+                                </div>
+                            }
+
+                            <div class="d-flex justify-content-between mt-4">
+                                <a asp-page="/Measurements/MeasurementIndex" class="btn btn-secondary">Cancel</a>
+                                <button type="submit" class="btn btn-primary">Start Measurement</button>
+                            </div>
+                        </form>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            This device does not require any parameters. You can start the measurement directly.
+                        </div>
+                        
+                        <form method="post" asp-page-handler="StartWithoutParameters">
+                            <input type="hidden" asp-for="DeviceId" />
+                            <input type="hidden" asp-for="DeviceName" />
+                            
+                            <div class="form-group mb-3">
+                                <label asp-for="MeasurementName" class="form-label">Measurement Name</label>
+                                <input asp-for="MeasurementName" class="form-control" placeholder="Enter measurement name" required />
+                            </div>
+                            
+                            <div class="d-flex justify-content-between">
+                                <a asp-page="/Measurements/MeasurementIndex" class="btn btn-secondary">Cancel</a>
+                                <button type="submit" class="btn btn-primary">Start Measurement</button>
+                            </div>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Parameter Help</h5>
+                </div>
+                <div class="card-body">
+                    <p><small class="text-muted">
+                        Configure the parameters for your measurement. Required parameters are marked with a red asterisk (*).
+                    </small></p>
+                    
+                    @if (Model.Parameters?.Any() == true)
+                    {
+                        <h6>Parameter Types:</h6>
+                        <ul class="small text-muted">
+                            <li><strong>String:</strong> Text input</li>
+                            <li><strong>Integer:</strong> Whole numbers</li>  
+                            <li><strong>Double:</strong> Decimal numbers</li>
+                            <li><strong>Boolean:</strong> True/false checkbox</li>
+                            <li><strong>DateTime:</strong> Date and time picker</li>
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.parameter-card {
+    border-left: 4px solid #007bff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: box-shadow 0.2s;
+}
+
+.parameter-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.parameter-info {
+    background-color: #f8f9fa;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.parameter-info strong {
+    color: #495057;
+}
+
+.fw-bold {
+    font-weight: 600 !important;
+}
+</style>

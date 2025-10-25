@@ -1,0 +1,68 @@
+@page
+@model DevicesIndexModel
+@{
+
+            ViewData["Title"] = "Settings Page";
+
+}
+
+<h1>Devices</h1>
+
+@if (TempData["Message"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Message"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Device Management</h2>
+    <a href="/Settings/DeviceForm" class="btn btn-success">
+        ➕ Add New Device
+    </a>
+</div>
+
+<h2>Existing Devices</h2>
+<table class="table">
+        <thead>
+                <tr>
+                <th>Device Identifier</th>
+                <th>Device Name</th>
+                <th>Executable Path</th>
+                <th>Actions</th>
+                </tr>
+        </thead>
+        <tbody>
+                @foreach(var device in Model.Devices){
+
+                        <tr>
+                                <td>@device.DeviceID</td>
+                                <td>@device.DeviceName</td>
+                                <td>@device.DeviceExecutablePath</td>
+                                <td>
+                                        <div class="button-container">
+                                                <a href="/Devices/DeviceForm/@device.DeviceID" class="btn btn-primary">
+                                                    📝 Edit
+                                                </a>
+                                                <form asp-page-handler="RemoveDevice" asp-route-id=@device.DeviceID>
+                                                        <button type="submit" class="btn btn-danger">Delete</button>
+                                                </form>
+                                        </div>
+                                </td>
+                        </tr>
+                }
+        </tbody>
+</table>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

@@ -1,0 +1,55 @@
+@page
+@model IndexDatasetsModel
+@{
+
+        ViewData["Title"] = "Data Page";
+
+}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Datasets</h1>
+    <div>
+        <a href="/Data/ManualEntry" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add Manual Data
+        </a>
+    </div>
+</div>
+
+@if (Model.Datasets.Count == 0)
+{
+    <p>No datasets available.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var dataset in Model.Datasets)
+            {
+                <tr>
+                    <td>@dataset.Value.DatasetDate.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                    <td>@dataset.Value.DatasetName</td>
+                    <td>@dataset.Value.DatasetDiscription</td>
+                    <td>
+                        <div class="button-container">
+                        <!-- Action buttons -->
+                            <form method="post" asp-page-handler="Delete" asp-route-id="@dataset.Value.DatasetID">
+                                <button type="submit" class="btn btn-danger">Delete</button>
+                            </form>
+                            <form method="post" asp-page-handler="View" asp-route-id="@dataset.Value.DatasetID">
+                                <button type="submit" class="btn btn-primary">View</button>
+                            </form>
+                        </div>                        
+
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

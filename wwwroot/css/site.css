@@ -1,0 +1,44 @@
+html {
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  margin-bottom: 60px;
+}
+
+.grid-deviceadding {
+  display: grid;
+  justify-content: flex-start;
+  /*grid-template-columns: repeat(2, 1fr); /* 3 columns of equal width */
+  /*grid-template-rows: repeat(3, 1fr); /* 2 rows of 100px height */
+}
+
+
+.grid-startmeasurement{
+
+  display: grid;
+  justify-content: flex-start;
+  grid-template-columns: repeat(2, 1fr); /* 3 columns of equal width */
+  grid-template-rows: repeat(3, 1fr); /* 2 rows of 100px height */
+}
+
+.button-container {
+  display: flex; /* Use flexbox for alignment */
+  justify-content: flex-start; /* Adjust alignment (e.g., space-around, center, etc.) */
+  gap: 10px; /* Add spacing between buttons */
+}

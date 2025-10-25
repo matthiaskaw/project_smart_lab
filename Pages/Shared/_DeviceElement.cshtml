@@ -1,0 +1,19 @@
+@model DeviceElement
+<div class="mb-3">
+    <input type="hidden" asp-for="DeviceID" />
+    
+    <div class="mb-3">
+        <label asp-for="DeviceName" class="form-label">Device Name:</label>
+        <input asp-for="DeviceName" class="form-control" required />
+        <span asp-validation-for="DeviceName" class="text-danger"></span>
+    </div>
+    
+    <div class="mb-3">
+        <label asp-for="DeviceExecutablePath" class="form-label">Device Executable Path:</label>
+        <input asp-for="DeviceExecutablePath" class="form-control" placeholder="Path to executable file" required />
+        <div class="form-text">Path to the executable that implements your device</div>
+        <span asp-validation-for="DeviceExecutablePath" class="text-danger"></span>
+    </div>
+    
+    <button type="submit" class="btn btn-primary">@Model.ButtonText</button>
+</div>

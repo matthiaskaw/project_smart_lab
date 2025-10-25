@@ -1,0 +1,14 @@
+@page "/EditDevice/{id:guid}"
+
+@model EditDeviceModel
+@{
+
+
+}
+
+<h1>Edit</h1>
+<form asp-page-handler="EditDevice">
+    @await Html.PartialAsync("_DeviceElement", Model.DeviceElement)
+</form>
+            
+

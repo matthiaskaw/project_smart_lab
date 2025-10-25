@@ -1,0 +1,54 @@
+@page "/Settings/DeviceForm/{id:guid?}"
+@model DeviceFormModel
+@{
+    ViewData["Title"] = Model.PageTitle;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>@Model.PageTitle</h1>
+    <a href="/Settings/SettingsIndex" class="btn btn-secondary">
+        ← Back to Settings
+    </a>
+</div>
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    @if (Model.IsEditMode)
+                    {
+                        <span>📝 Edit Device</span>
+                    }
+                    else
+                    {
+                        <span>➕ Add New Device</span>
+                    }
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    @await Html.PartialAsync("_DeviceElement", Model.DeviceElement)
+                    
+                    <div class="d-flex justify-content-between mt-3">
+                        <a href="/Devices/DevicesIndex" class="btn btn-outline-secondary">
+                            ✖ Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}
