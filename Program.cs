@@ -35,19 +35,19 @@ var dbPath = Path.Combine(Path.GetDirectoryName(dataDirectory) ?? "", "smartlab.
 builder.Services.AddSingleton<SmartLab.Domains.Core.Services.SettingsService>(SmartLab.Domains.Core.Services.SettingsService.Instance);
 
 // Register device-related services
-builder.Services.AddScoped<IDeviceFactory, DeviceFactory>();
-builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
+builder.Services.AddSingleton<IDeviceFactory, DeviceFactory>();
+builder.Services.AddSingleton<IDeviceRepository, DeviceRepository>();
 builder.Services.AddSingleton<IDeviceRegistry, DeviceRegistry>();
-builder.Services.AddScoped<IDeviceController, DeviceController>();
+builder.Services.AddSingleton<IDeviceController, DeviceController>();
 
 // Register proxy device services as transient to avoid disposal issues during startup
 builder.Services.AddTransient<IProxyDeviceCommunication, NamedPipeCommunication>();
 builder.Services.AddTransient<IProxyDeviceProcessManager, ProxyDeviceProcessManager>();
 
 // Register measurement services
-builder.Services.AddScoped<IMeasurementFactory, MeasurementFactory>();
+builder.Services.AddSingleton<IMeasurementFactory, MeasurementFactory>();
 builder.Services.AddSingleton<IMeasurementRegistry, MeasurementRegistry>();
-builder.Services.AddScoped<IMeasurementController, MeasurementController>();
+builder.Services.AddSingleton<IMeasurementController, MeasurementController>();
 builder.Services.AddSingleton<IConfiguredMeasurementService, ConfiguredMeasurementService>();
 
 builder.Services.AddSingleton<IDataController, SmartLab.Domains.Data.Services.DataController>();
@@ -105,5 +105,6 @@ app.UseAuthorization();
 
 app.MapRazorPages();
 app.Urls.Add("http://localhost:5000");
+//app.Urls.Add("http://0.0.0.0:5000");
 app.Run();
 
