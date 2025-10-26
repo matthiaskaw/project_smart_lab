@@ -31,9 +31,35 @@ namespace SmartLab.Pages.Data
 
         public async Task<IActionResult> OnPostAsync(IFormFile file)
         {
+            // Validate datetime specifically
+            if (DatasetDateTime == default(DateTime))
+            {
+                _logger.LogWarning("Invalid datetime provided: {DateTime}", DatasetDateTime);
+                ModelState.AddModelError(nameof(DatasetDateTime), "Please provide a valid date and time.");
+                return Page();
+            }
+
+            if (DatasetDateTime > DateTime.Now.AddDays(1))
+            {
+                _logger.LogWarning("Future datetime provided: {DateTime}", DatasetDateTime);
+                ModelState.AddModelError(nameof(DatasetDateTime), "Date cannot be in the future.");
+                return Page();
+            }
+
             if (!ModelState.IsValid)
             {
-                _logger.LogWarning("Model state invalid for manual entry");
+                // Detailed logging of validation errors
+                foreach (var kvp in ModelState)
+                {
+                    if (kvp.Value.Errors.Count > 0)
+                    {
+                        _logger.LogWarning("Validation error for field '{FieldName}': {Errors}", 
+                            kvp.Key, string.Join(", ", kvp.Value.Errors.Select(e => e.ErrorMessage)));
+                    }
+                }
+                
+                _logger.LogWarning("Model state invalid for manual entry. DatasetDescription: '{Description}', IsEmpty: {IsEmpty}", 
+                    DatasetDescription, string.IsNullOrEmpty(DatasetDescription));
                 return Page();
             }
 
