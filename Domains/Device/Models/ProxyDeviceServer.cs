@@ -506,7 +506,14 @@ namespace SmartLab.Domains.Device.Models
                     }
                 }
                 
-                _cancellationTokenSource?.Cancel();
+                try
+                {
+                    _cancellationTokenSource?.Cancel();
+                }
+                catch (ObjectDisposedException)
+                {
+                    // CancellationTokenSource already disposed, ignore
+                }
                 
                 await _processManager.DisposeAsync();
                 await _communication.DisposeAsync();
