@@ -1,6 +1,7 @@
 using System.Net;
 using SmartLab.Domains.Core.Services;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.IO;
 using System.Text;

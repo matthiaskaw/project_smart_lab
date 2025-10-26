@@ -47,9 +47,9 @@ builder.Services.AddTransient<IProxyDeviceCommunication, NamedPipeCommunication>
 builder.Services.AddTransient<IProxyDeviceProcessManager, ProxyDeviceProcessManager>();
 
 // Register measurement services
-builder.Services.AddScoped<IMeasurementFactory, MeasurementFactory>();
+builder.Services.AddSingleton<IMeasurementFactory, MeasurementFactory>();
 builder.Services.AddSingleton<IMeasurementRegistry, MeasurementRegistry>();
-builder.Services.AddScoped<IMeasurementController, MeasurementController>();
+builder.Services.AddSingleton<IMeasurementController, MeasurementController>();
 builder.Services.AddSingleton<IConfiguredMeasurementService, ConfiguredMeasurementService>();
 
 // Register data services

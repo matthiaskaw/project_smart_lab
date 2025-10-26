@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace SmartLab.Domains.Measurement.Models
 {
@@ -25,6 +27,7 @@ namespace SmartLab.Domains.Measurement.Models
         public Dictionary<string, object> ValidationRules { get; set; } = new();
     }
 
+    [JsonConverter(typeof(ParameterTypeConverter))]
     public enum ParameterType
     {
         String,
@@ -32,6 +35,28 @@ namespace SmartLab.Domains.Measurement.Models
         Double,
         Boolean,
         DateTime
+    }
+
+    public class ParameterTypeConverter : JsonConverter<ParameterType>
+    {
+        public override ParameterType Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            var value = reader.GetString();
+            return value?.ToLowerInvariant() switch
+            {
+                "string" => ParameterType.String,
+                "integer" => ParameterType.Integer,
+                "double" => ParameterType.Double,
+                "boolean" => ParameterType.Boolean,
+                "datetime" => ParameterType.DateTime,
+                _ => throw new JsonException($"Unable to convert \"{value}\" to ParameterType.")
+            };
+        }
+
+        public override void Write(Utf8JsonWriter writer, ParameterType value, JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value.ToString());
+        }
     }
 
     public class StructuredMeasurementData

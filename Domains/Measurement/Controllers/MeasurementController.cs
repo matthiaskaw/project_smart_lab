@@ -5,29 +5,27 @@ using SmartLab.Domains.Data.Interfaces;
 using SmartLab.Domains.Measurement.Interfaces;
 using SmartLab.Domains.Measurement.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 using System.Threading.Tasks;
 
 namespace SmartLab.Domains.Measurement.Controllers
 {
     public class MeasurementController : IMeasurementController
     {
-        private readonly IMeasurementFactory _factory;
         private readonly IMeasurementRegistry _registry;
-        private readonly IDeviceController _deviceController;
-        private readonly IServiceProvider _serviceProvider;
+        private readonly IMeasurementFactory _factory;
+        private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly ILogger<MeasurementController> _logger;
 
         public MeasurementController(
-            IMeasurementFactory factory,
             IMeasurementRegistry registry,
-            IDeviceController deviceController,
-            IServiceProvider serviceProvider,
+            IMeasurementFactory factory,
+            IServiceScopeFactory serviceScopeFactory,
             ILogger<MeasurementController> logger)
         {
-            _factory = factory ?? throw new ArgumentNullException(nameof(factory));
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
-            _deviceController = deviceController ?? throw new ArgumentNullException(nameof(deviceController));
-            _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+            _factory = factory ?? throw new ArgumentNullException(nameof(factory));
+            _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -59,72 +57,97 @@ namespace SmartLab.Domains.Measurement.Controllers
             // Fire and forget - handle in background with new scope
             _ = Task.Run(async () =>
             {
-                // Create a new scope to get fresh instances of scoped services (DbContext, etc.)
-                await using (var scope = _serviceProvider.CreateAsyncScope())
+                try
                 {
-                    try
+                    // Create a new scope to get fresh instances of scoped services (DbContext, etc.)
+                    await using (var scope = _serviceScopeFactory.CreateAsyncScope())
                     {
-                        var dataService = scope.ServiceProvider.GetRequiredService<IDataService>();
-
-                        _logger.LogInformation("Measurement ended: {MeasurementId}", args.measurementID);
-
-                        var measurement = await _registry.GetMeasurementAsync(args.measurementID);
-                        if (measurement == null)
-                        {
-                            _logger.LogWarning("Measurement {MeasurementId} not found for data processing", args.measurementID);
-                            return;
-                        }
-
-                        // Create dataset entity
-                        var dataset = new DatasetEntity
-                        {
-                            Id = args.measurementID,
-                            Name = measurement.MeasurementName,
-                            Description = "Device measurement data",
-                            CreatedDate = measurement.MeasurementDate,
-                            DataSource = DataSource.Device,
-                            EntryMethod = EntryMethod.DeviceMeasurement,
-                            DeviceId = measurement.Device.DeviceID
-                        };
-
-                        var datasetId = await dataService.CreateDatasetAsync(dataset);
-
-                        // Convert string data to data points
-                        var dataPoints = new List<DataPointEntity>();
-                        for (int i = 0; i < args.data.Count; i++)
-                        {
-                            dataPoints.Add(new DataPointEntity
-                            {
-                                DatasetId = datasetId,
-                                Timestamp = dataset.CreatedDate.AddSeconds(i),
-                                ParameterName = "Value",
-                                Value = args.data[i],
-                                RowIndex = i
-                            });
-                        }
-
-                        await dataService.AddDataPointsAsync(datasetId, dataPoints);
-
-                        _logger.LogInformation("Saved measurement data for {MeasurementId} with {DataPointCount} data points",
-                            args.measurementID, dataPoints.Count);
-
-                        _logger.LogInformation("Unregistering completed measurement {MeasurementId}", args.measurementID);
-                        await _registry.UnregisterMeasurementAsync(args.measurementID);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error processing measurement data for {MeasurementId}", args.measurementID);
-
-                        // Ensure measurement is removed from registry even on error
                         try
                         {
+                            var dataService = scope.ServiceProvider.GetRequiredService<IDataService>();
+
+                            _logger.LogInformation("Measurement ended: {MeasurementId}", args.measurementID);
+
+                            var measurement = await _registry.GetMeasurementAsync(args.measurementID);
+                            if (measurement == null)
+                            {
+                                _logger.LogWarning("Measurement {MeasurementId} not found for data processing", args.measurementID);
+                                return;
+                            }
+
+                            // Create dataset entity
+                            var dataset = new DatasetEntity
+                            {
+                                Id = args.measurementID,
+                                Name = measurement.MeasurementName,
+                                Description = "Device measurement data",
+                                CreatedDate = measurement.MeasurementDate,
+                                DataSource = DataSource.Device,
+                                EntryMethod = EntryMethod.DeviceMeasurement,
+                                DeviceId = measurement.Device.DeviceID
+                            };
+
+                            var datasetId = await dataService.CreateDatasetAsync(dataset);
+
+                            // Convert string data to data points
+                            var dataPoints = new List<DataPointEntity>();
+                            for (int i = 0; i < args.data.Count; i++)
+                            {
+                                dataPoints.Add(new DataPointEntity
+                                {
+                                    DatasetId = datasetId,
+                                    Timestamp = dataset.CreatedDate.AddSeconds(i),
+                                    ParameterName = "Value",
+                                    Value = args.data[i],
+                                    RowIndex = i
+                                });
+                            }
+
+                            await dataService.AddDataPointsAsync(datasetId, dataPoints);
+
+                            _logger.LogInformation("Saved measurement data for {MeasurementId} with {DataPointCount} data points",
+                                args.measurementID, dataPoints.Count);
+
+                            _logger.LogInformation("Unregistering completed measurement {MeasurementId}", args.measurementID);
                             await _registry.UnregisterMeasurementAsync(args.measurementID);
                         }
-                        catch (Exception unregisterEx)
+                        catch (ObjectDisposedException ex)
                         {
-                            _logger.LogError(unregisterEx, "Failed to unregister measurement {MeasurementId} after error", args.measurementID);
+                            _logger.LogWarning(ex, "Service was disposed while processing measurement data for {MeasurementId}. This can happen during application shutdown.", args.measurementID);
+                            
+                            // Try to clean up measurement registry without database operations
+                            try
+                            {
+                                await _registry.UnregisterMeasurementAsync(args.measurementID);
+                            }
+                            catch (Exception unregisterEx)
+                            {
+                                _logger.LogError(unregisterEx, "Failed to unregister measurement {MeasurementId} after disposal", args.measurementID);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error processing measurement data for {MeasurementId}", args.measurementID);
+
+                            // Ensure measurement is removed from registry even on error
+                            try
+                            {
+                                await _registry.UnregisterMeasurementAsync(args.measurementID);
+                            }
+                            catch (Exception unregisterEx)
+                            {
+                                _logger.LogError(unregisterEx, "Failed to unregister measurement {MeasurementId} after error", args.measurementID);
+                            }
                         }
                     }
+                }
+                catch (ObjectDisposedException ex)
+                {
+                    _logger.LogWarning(ex, "ServiceScopeFactory was disposed while processing measurement data for {MeasurementId}. This can happen during application shutdown.", args.measurementID);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Critical error in measurement data processing for {MeasurementId}", args.measurementID);
                 }
             });
         }
@@ -138,11 +161,26 @@ namespace SmartLab.Domains.Measurement.Controllers
         {
             try
             {
-                var device = await _deviceController.GetDeviceAsync(deviceId);
-                if (device == null)
+                DeviceConfiguration deviceConfig;
+                IDevice device;
+                
+                // Get device configuration (minimal scope usage)
+                await using (var scope = _serviceScopeFactory.CreateAsyncScope())
                 {
-                    throw new ArgumentException($"Device with ID {deviceId} not found");
+                    var deviceRepository = scope.ServiceProvider.GetRequiredService<IDeviceRepository>();
+                    var deviceFactory = scope.ServiceProvider.GetRequiredService<IDeviceFactory>();
+
+                    // Get device configuration from repository
+                    deviceConfig = await deviceRepository.GetByIdAsync(deviceId);
+                    if (deviceConfig == null)
+                    {
+                        throw new ArgumentException($"Device configuration with ID {deviceId} not found");
+                    }
+
+                    // Create a fresh device instance for this measurement
+                    device = deviceFactory.CreateDevice(deviceConfig);
                 }
+                // Scope is disposed here, but device is now independent
 
                 var measurement = _factory.CreateMeasurement(device);
                 measurement.MeasurementName = name;
@@ -157,8 +195,8 @@ namespace SmartLab.Domains.Measurement.Controllers
 
                 await _registry.RegisterMeasurementAsync(measurement);
 
-                // Start the measurement
-                _ = measurement.RunAsync(); // Fire and forget, but handle completion via event
+                // Start the measurement - device lifecycle is now managed by measurement
+                _ = measurement.RunAsync(); // Fire and forget, device disposal handled by measurement
 
                 _logger.LogInformation("Started measurement on device {DeviceName} with ID {MeasurementId} and {ParameterCount} parameters",
                     device.DeviceName, measurement.MeasurementID, parameters.Count);
@@ -186,7 +224,11 @@ namespace SmartLab.Domains.Measurement.Controllers
         {
             try
             {
-                var device = await _deviceController.GetDeviceAsync(deviceId);
+                await using var scope = _serviceScopeFactory.CreateAsyncScope();
+                var deviceController = scope.ServiceProvider.GetRequiredService<IDeviceController>();
+
+                // Get device from registry (reuse existing instance if available)
+                var device = await deviceController.GetDeviceAsync(deviceId);
                 if (device == null)
                 {
                     throw new ArgumentException($"Device with ID {deviceId} not found");
