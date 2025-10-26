@@ -63,7 +63,7 @@ builder.Services.AddRazorPages();
 var app = builder.Build();
 
 // Initialize database
-using (var scope = app.Services.CreateScope())
+await using (var scope = app.Services.CreateAsyncScope())
 {
     try
     {

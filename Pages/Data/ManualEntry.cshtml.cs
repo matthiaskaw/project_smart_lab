@@ -31,16 +31,24 @@ namespace SmartLab.Pages.Data
 
         public async Task<IActionResult> OnPostAsync(IFormFile file)
         {
+            if (!ModelState.IsValid)
+            {
+                _logger.LogWarning("Model state invalid for manual entry");
+                return Page();
+            }
+
             if (file == null || file.Length == 0)
             {
                 _logger.LogWarning("No file selected for upload");
-                return BadRequest("No file selected!");
+                ModelState.AddModelError(string.Empty, "No file selected!");
+                return Page();
             }
 
             if (file.Length > 10 * 1024 * 1024)
             {
                 _logger.LogWarning("File too large: {FileSize} bytes", file.Length);
-                return BadRequest("File too large (max 10MB).");
+                ModelState.AddModelError(string.Empty, "File too large (max 10MB).");
+                return Page();
             }
 
             var allowed = new[] { ".txt", ".csv" };
@@ -48,12 +56,13 @@ namespace SmartLab.Pages.Data
             if (!allowed.Contains(ext))
             {
                 _logger.LogWarning("Invalid file extension: {Extension}", ext);
-                return BadRequest("File extension not allowed. Only .txt and .csv files are supported.");
+                ModelState.AddModelError(string.Empty, "File extension not allowed. Only .txt and .csv files are supported.");
+                return Page();
             }
 
             try
             {
-                // Create import request
+                // Create import request with user-provided data
                 var importRequest = new ImportRequest
                 {
                     File = file,
@@ -63,22 +72,24 @@ namespace SmartLab.Pages.Data
                     {
                         HasHeader = ext == ".csv",
                         Delimiter = ext == ".csv" ? ',' : '\t',
-                        TimestampFormat = "yyyy-MM-dd HH:mm:ss"
+                        TimestampFormat = "yyyy-MM-dd HH:mm:ss",
+                        DefaultTimestamp = DatasetDateTime
                     }
                 };
 
                 // Import the dataset
                 var datasetId = await _dataService.ImportDatasetAsync(importRequest);
 
-                _logger.LogInformation("Successfully imported dataset {DatasetId} from file {FileName}",
-                    datasetId, file.FileName);
+                _logger.LogInformation("Successfully imported dataset {DatasetId} from file {FileName} with date {DatasetDateTime}",
+                    datasetId, file.FileName, DatasetDateTime);
 
+                TempData["Message"] = $"Dataset '{DatasetName}' imported successfully!";
                 return RedirectToPage("/Data/DataIndex");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to import dataset from file {FileName}", file.FileName);
-                ModelState.AddModelError(string.Empty, "Failed to import dataset. Please check the file format.");
+                ModelState.AddModelError(string.Empty, $"Failed to import dataset: {ex.Message}");
                 return Page();
             }
         }

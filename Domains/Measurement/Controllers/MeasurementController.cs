@@ -13,21 +13,21 @@ namespace SmartLab.Domains.Measurement.Controllers
     {
         private readonly IMeasurementFactory _factory;
         private readonly IMeasurementRegistry _registry;
-        private readonly IDataService _dataService;
         private readonly IDeviceController _deviceController;
+        private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<MeasurementController> _logger;
 
         public MeasurementController(
             IMeasurementFactory factory,
             IMeasurementRegistry registry,
-            IDataService dataService,
             IDeviceController deviceController,
+            IServiceProvider serviceProvider,
             ILogger<MeasurementController> logger)
         {
             _factory = factory ?? throw new ArgumentNullException(nameof(factory));
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
-            _dataService = dataService ?? throw new ArgumentNullException(nameof(dataService));
             _deviceController = deviceController ?? throw new ArgumentNullException(nameof(deviceController));
+            _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -38,7 +38,7 @@ namespace SmartLab.Domains.Measurement.Controllers
                 var measurement = await _registry.GetMeasurementAsync(measurementID);
                 if (measurement != null)
                 {
-                    measurement.Cancel();
+                    await measurement.Cancel();
                     await _registry.UnregisterMeasurementAsync(measurementID);
                     _logger.LogInformation("Cancelled measurement {MeasurementId}", measurementID);
                 }
@@ -54,59 +54,79 @@ namespace SmartLab.Domains.Measurement.Controllers
             }
         }
 
-        private async void OnDataAvailable(object? invoker, (Guid measurementID, List<string> data) args)
+        private void OnDataAvailable(object? invoker, (Guid measurementID, List<string> data) args)
         {
-            try
+            // Fire and forget - handle in background with new scope
+            _ = Task.Run(async () =>
             {
-                _logger.LogInformation("Measurement ended: {MeasurementId}", args.measurementID);
-
-                var measurement = await _registry.GetMeasurementAsync(args.measurementID);
-                if (measurement == null)
+                // Create a new scope to get fresh instances of scoped services (DbContext, etc.)
+                await using (var scope = _serviceProvider.CreateAsyncScope())
                 {
-                    _logger.LogWarning("Measurement {MeasurementId} not found for data processing", args.measurementID);
-                    return;
-                }
-
-                // Create dataset entity
-                var dataset = new DatasetEntity
-                {
-                    Id = args.measurementID,
-                    Name = measurement.MeasurementName,
-                    Description = "Device measurement data",
-                    CreatedDate = measurement.MeasurementDate,
-                    DataSource = DataSource.Device,
-                    EntryMethod = EntryMethod.DeviceMeasurement,
-                    DeviceId = measurement.Device.DeviceID
-                };
-
-                var datasetId = await _dataService.CreateDatasetAsync(dataset);
-
-                // Convert string data to data points
-                var dataPoints = new List<DataPointEntity>();
-                for (int i = 0; i < args.data.Count; i++)
-                {
-                    dataPoints.Add(new DataPointEntity
+                    try
                     {
-                        DatasetId = datasetId,
-                        Timestamp = dataset.CreatedDate.AddSeconds(i),
-                        ParameterName = "Value",
-                        Value = args.data[i],
-                        RowIndex = i
-                    });
+                        var dataService = scope.ServiceProvider.GetRequiredService<IDataService>();
+
+                        _logger.LogInformation("Measurement ended: {MeasurementId}", args.measurementID);
+
+                        var measurement = await _registry.GetMeasurementAsync(args.measurementID);
+                        if (measurement == null)
+                        {
+                            _logger.LogWarning("Measurement {MeasurementId} not found for data processing", args.measurementID);
+                            return;
+                        }
+
+                        // Create dataset entity
+                        var dataset = new DatasetEntity
+                        {
+                            Id = args.measurementID,
+                            Name = measurement.MeasurementName,
+                            Description = "Device measurement data",
+                            CreatedDate = measurement.MeasurementDate,
+                            DataSource = DataSource.Device,
+                            EntryMethod = EntryMethod.DeviceMeasurement,
+                            DeviceId = measurement.Device.DeviceID
+                        };
+
+                        var datasetId = await dataService.CreateDatasetAsync(dataset);
+
+                        // Convert string data to data points
+                        var dataPoints = new List<DataPointEntity>();
+                        for (int i = 0; i < args.data.Count; i++)
+                        {
+                            dataPoints.Add(new DataPointEntity
+                            {
+                                DatasetId = datasetId,
+                                Timestamp = dataset.CreatedDate.AddSeconds(i),
+                                ParameterName = "Value",
+                                Value = args.data[i],
+                                RowIndex = i
+                            });
+                        }
+
+                        await dataService.AddDataPointsAsync(datasetId, dataPoints);
+
+                        _logger.LogInformation("Saved measurement data for {MeasurementId} with {DataPointCount} data points",
+                            args.measurementID, dataPoints.Count);
+
+                        _logger.LogInformation("Unregistering completed measurement {MeasurementId}", args.measurementID);
+                        await _registry.UnregisterMeasurementAsync(args.measurementID);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error processing measurement data for {MeasurementId}", args.measurementID);
+
+                        // Ensure measurement is removed from registry even on error
+                        try
+                        {
+                            await _registry.UnregisterMeasurementAsync(args.measurementID);
+                        }
+                        catch (Exception unregisterEx)
+                        {
+                            _logger.LogError(unregisterEx, "Failed to unregister measurement {MeasurementId} after error", args.measurementID);
+                        }
+                    }
                 }
-
-                await _dataService.AddDataPointsAsync(datasetId, dataPoints);
-
-                _logger.LogInformation("Saved measurement data for {MeasurementId} with {DataPointCount} data points",
-                    args.measurementID, dataPoints.Count);
-
-                _logger.LogInformation("Unregistering completed measurement {MeasurementId}", args.measurementID);
-                await _registry.UnregisterMeasurementAsync(args.measurementID);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error processing measurement data for {MeasurementId}", args.measurementID);
-            }
+            });
         }
 
         public async Task<Guid> StartMeasurementAsync(Guid deviceId, string name, CancellationToken cancellationToken = default)

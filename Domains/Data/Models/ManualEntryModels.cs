@@ -58,17 +58,19 @@ namespace SmartLab.Domains.Data.Models
     public class ImportOptions
     {
         public bool HasHeader { get; set; } = true;
-        
+
         public string TimestampColumn { get; set; } = "Timestamp";
-        
+
         public string TimestampFormat { get; set; } = "yyyy-MM-dd HH:mm:ss";
-        
+
+        public DateTime? DefaultTimestamp { get; set; }
+
         public Dictionary<string, string> ColumnMapping { get; set; } = new();
-        
+
         public char Delimiter { get; set; } = ',';
-        
+
         public bool SkipEmptyRows { get; set; } = true;
-        
+
         public int SkipRows { get; set; } = 0;
     }
 
