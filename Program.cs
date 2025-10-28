@@ -30,7 +30,6 @@ var settingsService = SmartLab.Domains.Core.Services.SettingsService.Instance;
 var dataDirectory = settingsService.GetSettingByKey(SmartLab.Domains.Core.Services.ESettings.DataSetDirectory);
 var dbPath = Path.Combine(Path.GetDirectoryName(dataDirectory) ?? "", "smartlab.db");
 
-
 // Register services for dependency injection
 builder.Services.AddSingleton<SmartLab.Domains.Core.Services.SettingsService>(SmartLab.Domains.Core.Services.SettingsService.Instance);
 
@@ -104,7 +103,7 @@ app.UseAuthorization();
 
 
 app.MapRazorPages();
-app.Urls.Add("http://localhost:5000");
-//app.Urls.Add("http://0.0.0.0:5000");
+//app.Urls.Add("http://localhost:5000");
+app.Urls.Add("http://0.0.0.0:5000");
 app.Run();
 
