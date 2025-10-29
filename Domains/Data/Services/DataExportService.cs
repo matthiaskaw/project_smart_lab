@@ -45,7 +45,6 @@ namespace SmartLab.Domains.Data.Services
 
         /// <summary>
         /// Exports raw data from dataset without any transformation.
-        /// Falls back to DataPoints if RawDataJson is not available (e.g., imported files).
         /// </summary>
         private async Task<byte[]> ExportRawDataAsync(Guid datasetId)
         {
@@ -53,9 +52,8 @@ namespace SmartLab.Domains.Data.Services
             {
                 _logger.LogInformation("Exporting data for dataset {DatasetId}", datasetId);
 
-                // Get dataset with raw data and data points
+                // Get dataset with raw data
                 var dataset = await _context.Datasets
-                    .Include(d => d.DataPoints)
                     .AsNoTracking()
                     .FirstOrDefaultAsync(d => d.Id == datasetId);
 
@@ -64,20 +62,13 @@ namespace SmartLab.Domains.Data.Services
                     throw new InvalidOperationException($"Dataset {datasetId} not found");
                 }
 
-                // Try raw data first (device measurements)
-                if (!string.IsNullOrEmpty(dataset.RawDataJson))
+                if (string.IsNullOrEmpty(dataset.RawDataJson))
                 {
-                    return ExportFromRawDataJson(dataset);
+                    _logger.LogWarning("Dataset {DatasetId} has no data", datasetId);
+                    return Encoding.UTF8.GetBytes("No data available");
                 }
 
-                // Fall back to DataPoints (imported files, manual entry)
-                if (dataset.DataPoints.Any())
-                {
-                    return ExportFromDataPoints(dataset);
-                }
-
-                _logger.LogWarning("Dataset {DatasetId} has no data", datasetId);
-                return Encoding.UTF8.GetBytes("No data available");
+                return ExportFromRawDataJson(dataset);
             }
             catch (Exception ex)
             {
@@ -109,50 +100,5 @@ namespace SmartLab.Domains.Data.Services
             return result;
         }
 
-        /// <summary>
-        /// Exports from DataPoints (imported/manual data)
-        /// Recreates CSV format: Timestamp,Parameter,Value,Unit,Notes
-        /// </summary>
-        private byte[] ExportFromDataPoints(DatasetEntity dataset)
-        {
-            var lines = new List<string>
-            {
-                "Timestamp,Parameter,Value,Unit,Notes" // CSV header
-            };
-
-            var dataPoints = dataset.DataPoints
-                .OrderBy(dp => dp.Timestamp)
-                .ThenBy(dp => dp.RowIndex);
-
-            foreach (var dp in dataPoints)
-            {
-                var line = $"{dp.Timestamp:yyyy-MM-dd HH:mm:ss},{EscapeCsv(dp.ParameterName)},{EscapeCsv(dp.Value)},{EscapeCsv(dp.Unit ?? "")},{EscapeCsv(dp.Notes ?? "")}";
-                lines.Add(line);
-            }
-
-            var csvText = string.Join(Environment.NewLine, lines);
-            var result = Encoding.UTF8.GetBytes(csvText);
-
-            _logger.LogInformation("Exported {Count} data points from dataset {DatasetId} ({Size} bytes)",
-                dataset.DataPoints.Count, dataset.Id, result.Length);
-
-            return result;
-        }
-
-        /// <summary>
-        /// Escapes CSV values (quotes strings containing commas, quotes, or newlines)
-        /// </summary>
-        private string EscapeCsv(string value)
-        {
-            if (string.IsNullOrEmpty(value))
-                return value;
-
-            if (value.Contains(',') || value.Contains('"') || value.Contains('\n') || value.Contains('\r'))
-            {
-                return $"\"{value.Replace("\"", "\"\"")}\"";
-            }
-
-            return value;
-        }
     }
 }

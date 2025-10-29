@@ -67,7 +67,6 @@ namespace SmartLab.Domains.Data.Services
             try
             {
                 var datasets = await _context.Datasets
-                    .Include(d => d.DataPoints)
                     .Include(d => d.ValidationErrors)
                     .ToListAsync();
 
@@ -79,11 +78,6 @@ namespace SmartLab.Domains.Data.Services
                     CreatedDate = d.CreatedDate,
                     DataSource = d.DataSource,
                     EntryMethod = d.EntryMethod,
-                    DataPointCount = d.DataPoints.Count,
-                    ParameterCount = d.DataPoints.Select(dp => dp.ParameterName).Distinct().Count(),
-                    FirstTimestamp = d.DataPoints.OrderBy(dp => dp.Timestamp).FirstOrDefault()?.Timestamp,
-                    LastTimestamp = d.DataPoints.OrderByDescending(dp => dp.Timestamp).FirstOrDefault()?.Timestamp,
-                    ParameterNames = d.DataPoints.Select(dp => dp.ParameterName).Distinct().ToList(),
                     HasValidationErrors = d.ValidationErrors.Any(),
                     ValidationErrorCount = d.ValidationErrors.Count
                 }).ToList();
@@ -192,8 +186,19 @@ namespace SmartLab.Domains.Data.Services
         {
             try
             {
-                var validationResult = _validationService.ValidateDataPoints(request.DataPoints);
-                
+                // Convert manual entry to CSV-formatted lines
+                var lines = new List<string>
+                {
+                    "Timestamp,Parameter,Value,Unit,Notes" // CSV header
+                };
+
+                foreach (var dp in request.DataPoints.OrderBy(d => d.RowIndex))
+                {
+                    var line = $"{dp.Timestamp:yyyy-MM-dd HH:mm:ss},{EscapeCsv(dp.ParameterName)},{EscapeCsv(dp.Value)},{EscapeCsv(dp.Unit ?? "")},{EscapeCsv(dp.Notes ?? "")}";
+                    lines.Add(line);
+                }
+
+                // Store as raw data - format-agnostic
                 var dataset = new DatasetEntity
                 {
                     Id = Guid.NewGuid(),
@@ -201,43 +206,15 @@ namespace SmartLab.Domains.Data.Services
                     Description = request.Description,
                     CreatedDate = request.MeasurementDate ?? DateTime.UtcNow,
                     DataSource = DataSource.Manual,
-                    EntryMethod = EntryMethod.WebForm
+                    EntryMethod = EntryMethod.WebForm,
+                    RawDataJson = JsonSerializer.Serialize(lines)
                 };
 
                 _context.Datasets.Add(dataset);
-
-                var dataPoints = request.DataPoints.Select(dp => new DataPointEntity
-                {
-                    DatasetId = dataset.Id,
-                    Timestamp = dp.Timestamp,
-                    ParameterName = dp.ParameterName,
-                    Value = dp.Value,
-                    Unit = dp.Unit,
-                    Notes = dp.Notes,
-                    RowIndex = dp.RowIndex
-                }).ToList();
-
-                _context.DataPoints.AddRange(dataPoints);
-
-                if (!validationResult.IsValid)
-                {
-                    var errorEntities = validationResult.Errors.Select(e => new ValidationErrorEntity
-                    {
-                        DatasetId = dataset.Id,
-                        ErrorType = e.ErrorType,
-                        Message = e.Message,
-                        RowIndex = e.RowIndex,
-                        ParameterName = e.ParameterName,
-                        CreatedDate = DateTime.UtcNow
-                    }).ToList();
-
-                    _context.ValidationErrors.AddRange(errorEntities);
-                }
-
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Created manual dataset {DatasetId} with {DataPointCount} data points", 
-                    dataset.Id, dataPoints.Count);
+                _logger.LogInformation("Created manual dataset {DatasetId} with {LineCount} lines",
+                    dataset.Id, lines.Count);
 
                 return dataset.Id;
             }
@@ -246,6 +223,19 @@ namespace SmartLab.Domains.Data.Services
                 _logger.LogError(ex, "Failed to create manual dataset '{Name}'", request.Name);
                 throw;
             }
+        }
+
+        private string EscapeCsv(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return value;
+
+            if (value.Contains(',') || value.Contains('"') || value.Contains('\n') || value.Contains('\r'))
+            {
+                return $"\"{value.Replace("\"", "\"\"")}\"";
+            }
+
+            return value;
         }
 
         public async Task<DataValidationResult> ValidateManualDataAsync(List<ManualDataPoint> dataPoints)
@@ -270,9 +260,17 @@ namespace SmartLab.Domains.Data.Services
         {
             try
             {
-                var dataPoints = await _importService.ImportCsvAsync(request.File.OpenReadStream(), request.Options);
-                var validationResult = _validationService.ValidateDataPoints(dataPoints);
+                // Read file as raw text lines - no parsing, no interpretation
+                request.File.OpenReadStream().Position = 0;
+                using var reader = new StreamReader(request.File.OpenReadStream());
+                var rawLines = new List<string>();
+                string? line;
+                while ((line = await reader.ReadLineAsync()) != null)
+                {
+                    rawLines.Add(line);
+                }
 
+                // Store exactly as uploaded - format-agnostic
                 var dataset = new DatasetEntity
                 {
                     Id = Guid.NewGuid(),
@@ -281,44 +279,15 @@ namespace SmartLab.Domains.Data.Services
                     CreatedDate = DateTime.UtcNow,
                     DataSource = DataSource.Import,
                     EntryMethod = EntryMethod.CsvUpload,
-                    OriginalFilename = request.File.FileName
+                    OriginalFilename = request.File.FileName,
+                    RawDataJson = JsonSerializer.Serialize(rawLines)
                 };
 
                 _context.Datasets.Add(dataset);
-
-                var dataPointEntities = dataPoints.Select(dp => new DataPointEntity
-                {
-                    DatasetId = dataset.Id,
-                    Timestamp = dp.Timestamp,
-                    ParameterName = dp.ParameterName,
-                    Value = dp.Value,
-                    Unit = dp.Unit,
-                    Notes = dp.Notes,
-                    RowIndex = dp.RowIndex
-                }).ToList();
-
-                _context.DataPoints.AddRange(dataPointEntities);
-
-                if (!validationResult.IsValid)
-                {
-                    var errorEntities = validationResult.Errors.Concat(validationResult.Warnings)
-                        .Select(e => new ValidationErrorEntity
-                        {
-                            DatasetId = dataset.Id,
-                            ErrorType = e.ErrorType,
-                            Message = e.Message,
-                            RowIndex = e.RowIndex,
-                            ParameterName = e.ParameterName,
-                            CreatedDate = DateTime.UtcNow
-                        }).ToList();
-
-                    _context.ValidationErrors.AddRange(errorEntities);
-                }
-
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Imported dataset {DatasetId} from file '{FileName}' with {DataPointCount} data points", 
-                    dataset.Id, request.File.FileName, dataPointEntities.Count);
+                _logger.LogInformation("Imported dataset {DatasetId} from file '{FileName}' with {LineCount} lines",
+                    dataset.Id, request.File.FileName, rawLines.Count);
 
                 return dataset.Id;
             }
