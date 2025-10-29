@@ -59,6 +59,7 @@ builder.Services.AddSingleton<IConfiguredMeasurementService, ConfiguredMeasureme
 builder.Services.AddScoped<IDataService, DataService>();
 builder.Services.AddScoped<IDataImportService, DataImportService>();
 builder.Services.AddScoped<IDataValidationService, DataValidationService>();
+builder.Services.AddScoped<IDataExportService, DataExportService>();
 
 // Add services to the container.
 builder.Services.AddRazorPages();
