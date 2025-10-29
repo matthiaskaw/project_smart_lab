@@ -141,7 +141,7 @@ namespace SmartLab.Domains.Device.Models
 
                     var response = await _communication.ReceiveResponseAsync(_cancellationTokenSource.Token);
 
-                    if (response == "Test Device")
+                    if (!String.IsNullOrEmpty(response))
                     {
                         _logger.LogInformation("ProxyDevice {DeviceId} initialized successfully", DeviceID);
                         _isInitialized = true;
