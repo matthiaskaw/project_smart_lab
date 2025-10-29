@@ -10,7 +10,7 @@
 
 ## Overview
 
-SmartLab is a comprehensive laboratory data management system designed to automate measurement processes, manage device communications, and provide robust data storage and analysis capabilities. The system supports both automated device measurements and manual data entry with a modern web-based interface.
+SmartLab is a comprehensive laboratory data management system designed to automate measurement processes, manage device communications, and provide robust data storage. The system supports both automated device measurements and manual data entry with a modern web-based interface. With this web-based interface, data and measurement handling can be done with any device like a lab computer, office computer, and even your smartphone.
 
 ## Features
 
