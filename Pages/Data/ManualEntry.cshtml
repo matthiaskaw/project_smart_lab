@@ -66,16 +66,12 @@
         const day = String(now.getDate()).padStart(2, '0');
         dateInput.value = `${year}-${month}-${day}`;
 
-        // Format time as HH:MM (no restrictions - user can select any time)
+        // Format time as HH:MM
         const hours = String(now.getHours()).padStart(2, '0');
         const minutes = String(now.getMinutes()).padStart(2, '0');
         timeInput.value = `${hours}:${minutes}`;
 
-        // Set max date to today (no future dates allowed)
-        dateInput.setAttribute('max', `${year}-${month}-${day}`);
-
-        // No max time - allow any time on the selected date
-        // The server will validate if the combined date+time is in the future
+        // No client-side date/time validation - user can select any date and time
 
         // Debug: Check description field validation
         const descriptionTextarea = document.querySelector('textarea[name="DatasetDescription"]');

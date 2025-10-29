@@ -35,21 +35,6 @@ namespace SmartLab.Pages.Data
 
         public async Task<IActionResult> OnPostAsync(IFormFile file)
         {
-            // Validate date and time
-            if (DatasetDate == default(DateOnly))
-            {
-                _logger.LogWarning("Invalid date provided: {Date}", DatasetDate);
-                ModelState.AddModelError(nameof(DatasetDate), "Please provide a valid date.");
-                return Page();
-            }
-
-            if (DatasetTime == default(TimeOnly))
-            {
-                _logger.LogWarning("Invalid time provided: {Time}", DatasetTime);
-                ModelState.AddModelError(nameof(DatasetTime), "Please provide a valid time.");
-                return Page();
-            }
-
             // Combine date and time - treat as local time (no timezone conversions)
             // DatasetDate and DatasetTime come from user input in local time
             var datasetDateTime = new DateTime(
@@ -61,13 +46,6 @@ namespace SmartLab.Pages.Data
                 0,  // seconds
                 DateTimeKind.Local  // explicitly local time
             );
-
-            if (datasetDateTime > DateTime.Now)
-            {
-                _logger.LogWarning("Future datetime provided: {DateTime}", datasetDateTime);
-                ModelState.AddModelError(nameof(DatasetDate), "Date and time cannot be in the future.");
-                return Page();
-            }
 
             if (!ModelState.IsValid)
             {
