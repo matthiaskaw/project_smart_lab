@@ -42,6 +42,9 @@ builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
 builder.Services.AddSingleton<IDeviceRegistry, DeviceRegistry>();
 builder.Services.AddScoped<IDeviceController, DeviceController>();
 
+// Register platform helper for cross-platform named pipe support
+builder.Services.AddSingleton<IPlatformHelper, PlatformHelper>();
+
 // Register proxy device services as transient to avoid disposal issues during startup
 builder.Services.AddTransient<IProxyDeviceCommunication, NamedPipeCommunication>();
 builder.Services.AddTransient<IProxyDeviceProcessManager, ProxyDeviceProcessManager>();
@@ -56,6 +59,7 @@ builder.Services.AddSingleton<IConfiguredMeasurementService, ConfiguredMeasureme
 builder.Services.AddScoped<IDataService, DataService>();
 builder.Services.AddScoped<IDataImportService, DataImportService>();
 builder.Services.AddScoped<IDataValidationService, DataValidationService>();
+builder.Services.AddScoped<IDataExportService, DataExportService>();
 
 // Add services to the container.
 builder.Services.AddRazorPages();
@@ -109,6 +113,7 @@ app.UseAuthorization();
 
 
 app.MapRazorPages();
-app.Urls.Add("http://localhost:5000");
+//app.Urls.Add("http://localhost:5000"); //@ Claude: do not delete
+app.Urls.Add("http://0.0.0.0:5000"); //@Claude: do not delete
 app.Run();
 

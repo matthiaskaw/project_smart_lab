@@ -6,6 +6,7 @@ using SmartLab.Domains.Measurement.Interfaces;
 using SmartLab.Domains.Measurement.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace SmartLab.Domains.Measurement.Controllers
@@ -75,7 +76,8 @@ namespace SmartLab.Domains.Measurement.Controllers
                                 return;
                             }
 
-                            // Create dataset entity
+                            // Create dataset entity with raw data
+                            // Store data exactly as device sent it - no transformation
                             var dataset = new DatasetEntity
                             {
                                 Id = args.measurementID,
@@ -84,29 +86,14 @@ namespace SmartLab.Domains.Measurement.Controllers
                                 CreatedDate = measurement.MeasurementDate,
                                 DataSource = DataSource.Device,
                                 EntryMethod = EntryMethod.DeviceMeasurement,
-                                DeviceId = measurement.Device.DeviceID
+                                DeviceId = measurement.Device.DeviceID,
+                                RawDataJson = JsonSerializer.Serialize(args.data) // Store raw data as-is
                             };
 
                             var datasetId = await dataService.CreateDatasetAsync(dataset);
 
-                            // Convert string data to data points
-                            var dataPoints = new List<DataPointEntity>();
-                            for (int i = 0; i < args.data.Count; i++)
-                            {
-                                dataPoints.Add(new DataPointEntity
-                                {
-                                    DatasetId = datasetId,
-                                    Timestamp = dataset.CreatedDate.AddSeconds(i),
-                                    ParameterName = "Value",
-                                    Value = args.data[i],
-                                    RowIndex = i
-                                });
-                            }
-
-                            await dataService.AddDataPointsAsync(datasetId, dataPoints);
-
-                            _logger.LogInformation("Saved measurement data for {MeasurementId} with {DataPointCount} data points",
-                                args.measurementID, dataPoints.Count);
+                            _logger.LogInformation("Saved measurement data for {MeasurementId} with {DataPointCount} raw data entries",
+                                args.measurementID, args.data.Count);
 
                             _logger.LogInformation("Unregistering completed measurement {MeasurementId}", args.measurementID);
                             await _registry.UnregisterMeasurementAsync(args.measurementID);

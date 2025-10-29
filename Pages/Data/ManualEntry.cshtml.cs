@@ -11,7 +11,8 @@ namespace SmartLab.Pages.Data
         private readonly IDataService _dataService;
         private readonly ILogger<ManualEntryModel> _logger;
 
-        public DateTime DatasetDateTime { get; set; }
+        public DateOnly DatasetDate { get; set; }
+        public TimeOnly DatasetTime { get; set; }
         public string DatasetName { get; set; } = string.Empty;
         public string DatasetDescription { get; set; } = string.Empty;
 
@@ -25,26 +26,26 @@ namespace SmartLab.Pages.Data
 
         public void OnGet()
         {
-            DatasetDateTime = DateTime.Now;
+            // Use local time without any timezone conversions
+            var now = DateTime.Now;
+            DatasetDate = DateOnly.FromDateTime(now);
+            DatasetTime = TimeOnly.FromDateTime(now);
             _logger.LogInformation("Manual entry page accessed");
         }
 
         public async Task<IActionResult> OnPostAsync(IFormFile file)
         {
-            // Validate datetime specifically
-            if (DatasetDateTime == default(DateTime))
-            {
-                _logger.LogWarning("Invalid datetime provided: {DateTime}", DatasetDateTime);
-                ModelState.AddModelError(nameof(DatasetDateTime), "Please provide a valid date and time.");
-                return Page();
-            }
-
-            if (DatasetDateTime > DateTime.Now.AddDays(1))
-            {
-                _logger.LogWarning("Future datetime provided: {DateTime}", DatasetDateTime);
-                ModelState.AddModelError(nameof(DatasetDateTime), "Date cannot be in the future.");
-                return Page();
-            }
+            // Combine date and time - treat as local time (no timezone conversions)
+            // DatasetDate and DatasetTime come from user input in local time
+            var datasetDateTime = new DateTime(
+                DatasetDate.Year,
+                DatasetDate.Month,
+                DatasetDate.Day,
+                DatasetTime.Hour,
+                DatasetTime.Minute,
+                0,  // seconds
+                DateTimeKind.Local  // explicitly local time
+            );
 
             if (!ModelState.IsValid)
             {
@@ -99,7 +100,7 @@ namespace SmartLab.Pages.Data
                         HasHeader = ext == ".csv",
                         Delimiter = ext == ".csv" ? ',' : '\t',
                         TimestampFormat = "yyyy-MM-dd HH:mm:ss",
-                        DefaultTimestamp = DatasetDateTime
+                        DefaultTimestamp = datasetDateTime
                     }
                 };
 
@@ -107,7 +108,7 @@ namespace SmartLab.Pages.Data
                 var datasetId = await _dataService.ImportDatasetAsync(importRequest);
 
                 _logger.LogInformation("Successfully imported dataset {DatasetId} from file {FileName} with date {DatasetDateTime}",
-                    datasetId, file.FileName, DatasetDateTime);
+                    datasetId, file.FileName, datasetDateTime);
 
                 TempData["Message"] = $"Dataset '{DatasetName}' imported successfully!";
                 return RedirectToPage("/Data/DataIndex");

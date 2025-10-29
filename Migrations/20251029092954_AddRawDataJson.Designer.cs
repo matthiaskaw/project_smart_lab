@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SmartLab.Domains.Data.Database;
 
@@ -10,9 +11,11 @@ using SmartLab.Domains.Data.Database;
 namespace smartlab.Migrations
 {
     [DbContext(typeof(SmartLabDbContext))]
-    partial class SmartLabDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251029092954_AddRawDataJson")]
+    partial class AddRawDataJson
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.0");

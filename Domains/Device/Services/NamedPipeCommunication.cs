@@ -7,16 +7,20 @@ namespace SmartLab.Domains.Device.Services
     public class NamedPipeCommunication : IProxyDeviceCommunication, IAsyncDisposable
     {
         private readonly ILogger<NamedPipeCommunication> _logger;
+        private readonly IPlatformHelper _platformHelper;
         private NamedPipeServerStream? _serverToClient;
         private NamedPipeServerStream? _clientToServer;
         private StreamWriter? _writer;
         private StreamReader? _reader;
         private bool _disposed;
         private Guid _deviceID;
+        private string? _serverToClientPipeName;
+        private string? _clientToServerPipeName;
 
-        public NamedPipeCommunication(ILogger<NamedPipeCommunication> logger)
+        public NamedPipeCommunication(ILogger<NamedPipeCommunication> logger, IPlatformHelper platformHelper)
         {
             _logger = logger;
+            _platformHelper = platformHelper;
         }
 
         public bool IsConnected =>
@@ -35,27 +39,35 @@ namespace SmartLab.Domains.Device.Services
             try
             {
                 _deviceID = deviceID;
-                _logger.LogInformation("Creating named pipes for device {DeviceId}", deviceID);
+                _serverToClientPipeName = $"serverToClient_{deviceID}";
+                _clientToServerPipeName = $"clientToServer_{deviceID}";
 
-                // Clean up existing pipes if they exist
+                _logger.LogInformation("Creating named pipes for device {DeviceId} on platform {Platform}",
+                    deviceID, _platformHelper.PlatformName);
+
+                // Clean up existing pipes if they exist (important for Linux socket files)
                 InternalCleanup();
 
                 // Create bidirectional pipes with multiple instances to handle reconnections
+                // .NET automatically creates platform-specific pipes:
+                // - Windows: \\.\pipe\{pipeName}
+                // - Linux: /tmp/CoreFxPipe_{pipeName}
                 _serverToClient = new NamedPipeServerStream(
-                    $"serverToClient_{deviceID}",
+                    _serverToClientPipeName,
                     PipeDirection.Out,
                     NamedPipeServerStream.MaxAllowedServerInstances,
                     PipeTransmissionMode.Byte,
                     PipeOptions.Asynchronous);
 
                 _clientToServer = new NamedPipeServerStream(
-                    $"clientToServer_{deviceID}",
+                    _clientToServerPipeName,
                     PipeDirection.In,
                     NamedPipeServerStream.MaxAllowedServerInstances,
                     PipeTransmissionMode.Byte,
                     PipeOptions.Asynchronous);
 
-                _logger.LogInformation("Named pipes created successfully: serverToClient_{DeviceId} and clientToServer_{DeviceId}", deviceID, deviceID);
+                _logger.LogInformation("Named pipes created successfully: {ServerToClient} and {ClientToServer}",
+                    _serverToClientPipeName, _clientToServerPipeName);
                 await Task.CompletedTask;
             }
             catch (Exception ex)
@@ -150,17 +162,27 @@ namespace SmartLab.Domains.Device.Services
             {
                 _writer?.Dispose();
                 _reader?.Dispose();
-                
+
                 _serverToClient?.Close();
                 _clientToServer?.Close();
-                
+
                 _serverToClient?.Dispose();
                 _clientToServer?.Dispose();
-                
+
                 _writer = null;
                 _reader = null;
                 _serverToClient = null;
                 _clientToServer = null;
+
+                // Clean up socket files on Linux (no-op on Windows)
+                if (_serverToClientPipeName != null)
+                {
+                    _platformHelper.CleanupSocketFile(_serverToClientPipeName);
+                }
+                if (_clientToServerPipeName != null)
+                {
+                    _platformHelper.CleanupSocketFile(_clientToServerPipeName);
+                }
             }
             catch (Exception ex)
             {
