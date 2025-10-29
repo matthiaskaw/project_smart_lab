@@ -1,0 +1,9 @@
+200 OK
+Length: unspecified [application/octet-stream]
+Saving to: ‘/tmp/dotnet-install.sh’
+
+     0K .......... .......... .......... .......... ..........  246K
+    50K .......... ..                                          22.7T=0.2s
+
+2025-10-29 21:15:49 (306 KB/s) - ‘/tmp/dotnet-install.sh’ saved [63666]
+
