@@ -64,11 +64,11 @@ public class IndexDatasetsModel : PageModel
         return RedirectToPage("ViewDataset", new { id });
     }
 
-    public async Task<IActionResult> OnPostDownloadAsync(Guid id, string format = "csv")
+    public async Task<IActionResult> OnPostDownloadAsync(Guid id)
     {
         try
         {
-            _logger.LogInformation("Downloading dataset {DatasetId} in {Format} format", id, format);
+            _logger.LogInformation("Downloading dataset {DatasetId}", id);
 
             // Get dataset info for filename
             var dataset = await _dataService.GetDatasetAsync(id);
@@ -78,34 +78,17 @@ public class IndexDatasetsModel : PageModel
                 return NotFound();
             }
 
-            // Export based on format
-            byte[] data;
-            string contentType;
-            string extension;
+            // Export raw data (device controls format)
+            var data = await _exportService.ExportToCsvAsync(id);
 
-            switch (format.ToLower())
-            {
-                case "json":
-                    data = await _exportService.ExportToJsonAsync(id);
-                    contentType = "application/json";
-                    extension = "json";
-                    break;
-                case "csv":
-                default:
-                    data = await _exportService.ExportToCsvAsync(id);
-                    contentType = "text/csv";
-                    extension = "csv";
-                    break;
-            }
-
-            // Create safe filename
+            // Create safe filename (use .txt extension - device controls actual format)
             var safeFileName = string.Join("_", dataset.Name.Split(Path.GetInvalidFileNameChars()));
-            var fileName = $"{safeFileName}_{DateTime.Now:yyyyMMdd_HHmmss}.{extension}";
+            var fileName = $"{safeFileName}_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
 
             _logger.LogInformation("Downloaded dataset {DatasetId} as {FileName} ({Size} bytes)",
                 id, fileName, data.Length);
 
-            return File(data, contentType, fileName);
+            return File(data, "text/plain", fileName);
         }
         catch (Exception ex)
         {

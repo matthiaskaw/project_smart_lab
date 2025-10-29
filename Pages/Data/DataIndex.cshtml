@@ -44,24 +44,10 @@ else
                         <div class="button-container">
                         <!-- Action buttons -->
                             <div class="btn-group" role="group">
-                                <!-- Download dropdown -->
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-sm btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                        Download
-                                    </button>
-                                    <ul class="dropdown-menu">
-                                        <li>
-                                            <form method="post" asp-page-handler="Download" asp-route-id="@dataset.Id" asp-route-format="csv">
-                                                <button type="submit" class="dropdown-item">CSV</button>
-                                            </form>
-                                        </li>
-                                        <li>
-                                            <form method="post" asp-page-handler="Download" asp-route-id="@dataset.Id" asp-route-format="json">
-                                                <button type="submit" class="dropdown-item">JSON</button>
-                                            </form>
-                                        </li>
-                                    </ul>
-                                </div>
+                                <!-- Download button (device format) -->
+                                <form method="post" asp-page-handler="Download" asp-route-id="@dataset.Id" style="display:inline;">
+                                    <button type="submit" class="btn btn-sm btn-success">Download</button>
+                                </form>
 
                                 <!-- View button -->
                                 <form method="post" asp-page-handler="View" asp-route-id="@dataset.Id" style="display:inline;">
