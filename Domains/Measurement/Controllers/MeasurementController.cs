@@ -34,7 +34,7 @@ namespace SmartLab.Domains.Measurement.Controllers
         {
             try
             {
-                var measurement = await _registry.GetMeasurementAsync(measurementID);
+                IMeasurement measurement = await _registry.GetMeasurementAsync(measurementID);
                 if (measurement != null)
                 {
                     await measurement.Cancel();
