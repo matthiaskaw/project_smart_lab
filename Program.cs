@@ -45,6 +45,9 @@ builder.Services.AddScoped<IDeviceController, DeviceController>();
 // Register platform helper for cross-platform named pipe support
 builder.Services.AddSingleton<IPlatformHelper, PlatformHelper>();
 
+// Register socket file tracker for cleanup after crashes (Linux)
+builder.Services.AddSingleton<ISocketFileTracker, SocketFileTracker>();
+
 // Register proxy device services as transient to avoid disposal issues during startup
 builder.Services.AddTransient<IProxyDeviceCommunication, NamedPipeCommunication>();
 builder.Services.AddTransient<IProxyDeviceProcessManager, ProxyDeviceProcessManager>();
@@ -65,6 +68,18 @@ builder.Services.AddScoped<IDataExportService, DataExportService>();
 builder.Services.AddRazorPages();
 
 var app = builder.Build();
+
+// Clean up stale socket files from previous crashed instances (Linux only, safe on all platforms)
+try
+{
+    var socketFileTracker = app.Services.GetRequiredService<ISocketFileTracker>();
+    await socketFileTracker.CleanupStaleSocketFilesAsync();
+}
+catch (Exception ex)
+{
+    app.Logger.LogWarning(ex, "Failed to cleanup stale socket files during startup - continuing anyway");
+    // Don't fail the application if socket cleanup fails
+}
 
 // Initialize database
 await using (var scope = app.Services.CreateAsyncScope())

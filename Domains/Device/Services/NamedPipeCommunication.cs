@@ -8,6 +8,7 @@ namespace SmartLab.Domains.Device.Services
     {
         private readonly ILogger<NamedPipeCommunication> _logger;
         private readonly IPlatformHelper _platformHelper;
+        private readonly ISocketFileTracker _socketFileTracker;
         private NamedPipeServerStream? _serverToClient;
         private NamedPipeServerStream? _clientToServer;
         private StreamWriter? _writer;
@@ -19,10 +20,14 @@ namespace SmartLab.Domains.Device.Services
         private Task? _serverToClientWaitTask;
         private Task? _clientToServerWaitTask;
 
-        public NamedPipeCommunication(ILogger<NamedPipeCommunication> logger, IPlatformHelper platformHelper)
+        public NamedPipeCommunication(
+            ILogger<NamedPipeCommunication> logger,
+            IPlatformHelper platformHelper,
+            ISocketFileTracker socketFileTracker)
         {
             _logger = logger;
             _platformHelper = platformHelper;
+            _socketFileTracker = socketFileTracker;
         }
 
         public bool IsConnected =>
@@ -47,8 +52,9 @@ namespace SmartLab.Domains.Device.Services
                 _logger.LogInformation("Creating named pipes for device {DeviceId} on platform {Platform}",
                     deviceID, _platformHelper.PlatformName);
 
-                // Clean up existing pipes if they exist (important for Linux socket files)
-                InternalCleanup();
+                // Note: We do NOT clean up here anymore. Cleanup only happens:
+                // 1. On app startup (stale files from crashes)
+                // 2. On disposal (normal cleanup)
 
                 // Create bidirectional pipes with multiple instances to handle reconnections
                 // .NET automatically creates platform-specific pipes:
@@ -70,7 +76,19 @@ namespace SmartLab.Domains.Device.Services
 
                 _logger.LogInformation("Named pipes created successfully: {ServerToClient} and {ClientToServer}",
                     _serverToClientPipeName, _clientToServerPipeName);
-                await Task.CompletedTask;
+
+                // Register socket file paths for cleanup tracking (Linux only, but safe to call on all platforms)
+                var serverToClientSocketPath = _platformHelper.GetSocketFilePath(_serverToClientPipeName);
+                var clientToServerSocketPath = _platformHelper.GetSocketFilePath(_clientToServerPipeName);
+
+                if (serverToClientSocketPath != null)
+                {
+                    await _socketFileTracker.RegisterSocketFileAsync(serverToClientSocketPath);
+                }
+                if (clientToServerSocketPath != null)
+                {
+                    await _socketFileTracker.RegisterSocketFileAsync(clientToServerSocketPath);
+                }
             }
             catch (Exception ex)
             {
@@ -230,13 +248,27 @@ namespace SmartLab.Domains.Device.Services
                 _serverToClient = null;
                 _clientToServer = null;
 
-                // Clean up socket files on Linux (no-op on Windows)
+                // Unregister and clean up socket files on Linux (no-op on Windows)
                 if (_serverToClientPipeName != null)
                 {
+                    var socketPath = _platformHelper.GetSocketFilePath(_serverToClientPipeName);
+                    if (socketPath != null)
+                    {
+                        // Unregister from tracking file first
+                        _socketFileTracker.UnregisterSocketFileAsync(socketPath).GetAwaiter().GetResult();
+                    }
+                    // Then delete the actual file
                     _platformHelper.CleanupSocketFile(_serverToClientPipeName);
                 }
                 if (_clientToServerPipeName != null)
                 {
+                    var socketPath = _platformHelper.GetSocketFilePath(_clientToServerPipeName);
+                    if (socketPath != null)
+                    {
+                        // Unregister from tracking file first
+                        _socketFileTracker.UnregisterSocketFileAsync(socketPath).GetAwaiter().GetResult();
+                    }
+                    // Then delete the actual file
                     _platformHelper.CleanupSocketFile(_clientToServerPipeName);
                 }
             }

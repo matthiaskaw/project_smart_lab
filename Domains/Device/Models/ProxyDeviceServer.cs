@@ -317,19 +317,10 @@ namespace SmartLab.Domains.Device.Models
                 _logger.LogWarning("Data response did not start with 'DATA:': {Response}", dataResponse?.Substring(0, Math.Min(dataResponse?.Length ?? 0, 100)));
                 result = await CreateFallbackData(parameters);
             }
-            
-            // Send FINISH command to signal measurement completion
-            try
-            {
-                _logger.LogInformation("Sending FINISH command to external device");
-                await _communication.SendCommandAsync("FINISH", _cancellationTokenSource.Token);
-                // Note: Don't wait for response from FINISH as the external device may terminate immediately
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to send FINISH command to external device - device may have already terminated");
-            }
-            
+
+            // Note: FINISH command is sent during device disposal, not here
+            // This allows the device to potentially be reused for multiple measurements
+
             return result;
         }
         
@@ -411,18 +402,10 @@ namespace SmartLab.Domains.Device.Models
                     _logger.LogWarning("Unexpected response during breakpoint measurement: {Response}", response);
                 }
             }
-            
-            // Send FINISH command to signal measurement completion
-            try
-            {
-                _logger.LogInformation("Sending FINISH command after breakpoint measurement");
-                await _communication.SendCommandAsync("FINISH", _cancellationTokenSource.Token);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to send FINISH command after breakpoint measurement");
-            }
-            
+
+            // Note: FINISH command is sent during device disposal, not here
+            // This allows the device to potentially be reused for multiple measurements
+
             // Return consolidated data
             var finalResult = new StructuredMeasurementData
             {
