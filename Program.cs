@@ -113,7 +113,7 @@ app.UseAuthorization();
 
 
 app.MapRazorPages();
-//app.Urls.Add("http://localhost:5000"); //@ Claude: do not delete
-app.Urls.Add("http://0.0.0.0:5000"); //@Claude: do not delete
+app.Urls.Add("http://localhost:5000"); // Commented for WSL testing //@ Claude: do not delete
+//app.Urls.Add("http://0.0.0.0:5000"); //@Claude: do not delete
 app.Run();
 

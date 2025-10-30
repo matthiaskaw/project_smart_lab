@@ -172,7 +172,7 @@ namespace SmartLab.Domains.Measurement.Controllers
                 var measurement = _factory.CreateMeasurement(device);
                 measurement.MeasurementName = name;
                 measurement.MeasurementDate = DateTime.Now;
-                measurement.DataAvailable += OnDataAvailable;
+                measurement.DataAvailable += OnDataAvailable;//TEST
 
                 // Set parameters if the measurement supports them
                 if (measurement is ParameterizedDeviceMeasurement paramMeasurement)
@@ -209,38 +209,68 @@ namespace SmartLab.Domains.Measurement.Controllers
 
         public async Task<List<MeasurementParameter>> GetDeviceParametersAsync(Guid deviceId, CancellationToken cancellationToken = default)
         {
-            try
-            {
-                await using var scope = _serviceScopeFactory.CreateAsyncScope();
-                var deviceController = scope.ServiceProvider.GetRequiredService<IDeviceController>();
+             try
+              {
+                  DeviceConfiguration? deviceConfig;
+                  IDevice device;
 
-                // Get device from registry (reuse existing instance if available)
-                var device = await deviceController.GetDeviceAsync(deviceId);
-                if (device == null)
-                {
-                    throw new ArgumentException($"Device with ID {deviceId} not found");
-                }
+                  // Create a fresh device instance for parameter discovery (measurement-lifetime pattern)
+                  // This ensures consistent resource management and prevents socket file conflicts on Linux
+                  await using (var scope = _serviceScopeFactory.CreateAsyncScope())
+                  {
+                      var deviceRepository = scope.ServiceProvider.GetRequiredService<IDeviceRepository>();
+                      var deviceFactory = scope.ServiceProvider.GetRequiredService<IDeviceFactory>();
 
-                // Check if device supports parameter discovery
-                if (device is IParameterizedDevice paramDevice && paramDevice.SupportsParameterDiscovery)
-                {
-                    _logger.LogInformation("Getting parameters for device {DeviceName}", device.DeviceName);
+                      // Get device configuration from repository
+                      deviceConfig = await deviceRepository.GetByIdAsync(deviceId);
+                      if (deviceConfig == null)
+                      {
+                          throw new ArgumentException($"Device configuration with ID {deviceId} not found");
+                      }
 
-                    // Use cached parameters if available
-                    var parameters = await paramDevice.GetRequiredParametersAsync();
-                    _logger.LogInformation("Retrieved {Count} parameters for device {DeviceName}",
-                        parameters.Count, device.DeviceName);
-                    return parameters;
-                }
+                      // Create a fresh device instance
+                      device = deviceFactory.CreateDevice(deviceConfig);
+                  }
 
-                _logger.LogInformation("Device {DeviceName} does not support parameter discovery", device.DeviceName);
-                return new List<MeasurementParameter>();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to get parameters for device {DeviceId}", deviceId);
-                throw;
-            }
+                  // Check if device supports parameter discovery
+                  if (device is IParameterizedDevice paramDevice && paramDevice.SupportsParameterDiscovery)
+                  {
+                      try
+                      {
+                          _logger.LogInformation("Getting parameters for device {DeviceName}", device.DeviceName);
+
+                          // Initialize device (creates pipes, starts process, establishes connection)
+                          await device.InitializeAsync();
+
+                          // Get parameters from device
+                          var parameters = await paramDevice.GetRequiredParametersAsync();
+                          _logger.LogInformation("Retrieved {Count} parameters for device {DeviceName}",
+                              parameters.Count, device.DeviceName);
+                          return parameters;
+                      }
+                      finally
+                      {
+                          // Always dispose device after parameter discovery (cleans up pipes and process)
+                          if (device is IAsyncDisposable asyncDisposable)
+                          {
+                              await asyncDisposable.DisposeAsync();
+                          }
+                          else if (device is IDisposable disposable)
+                          {
+                              disposable.Dispose();
+                          }
+                      }
+                  }
+
+                  _logger.LogInformation("Device {DeviceName} does not support parameter discovery", device.DeviceName);
+                  return new List<MeasurementParameter>();
+              }
+              catch (Exception ex)
+              {
+                  _logger.LogError(ex, "Failed to get parameters for device {DeviceId}", deviceId);
+                  throw;
+              }
+
         }
     }
 }
