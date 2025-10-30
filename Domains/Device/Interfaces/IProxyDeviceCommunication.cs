@@ -6,6 +6,7 @@ namespace SmartLab.Domains.Device.Interfaces
         Task CreatePipesAsync(Guid deviceID);
         Task WaitForConnectionAsync(CancellationToken cancellationToken = default);
         Task EnsurePipeReadyAsync();
+        Task CleanupOnErrorAsync();
         Task SendCommandAsync(string command, CancellationToken cancellationToken = default);
         Task<string> ReceiveResponseAsync(CancellationToken cancellationToken = default);
         bool IsConnected { get; }

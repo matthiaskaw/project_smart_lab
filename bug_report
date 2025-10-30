@@ -1,0 +1,1 @@
+Found bug when wrapper script for dummy device had no permission, the program had to be restarted to reset. Maybe pipe clean up on error is not solved

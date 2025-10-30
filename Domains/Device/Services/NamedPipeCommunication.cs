@@ -230,6 +230,31 @@ namespace SmartLab.Domains.Device.Services
             }
         }
 
+        public async Task CleanupOnErrorAsync()
+        {
+            _logger.LogInformation("Performing error cleanup - cancelling pending operations and cleaning up resources");
+
+            try
+            {
+                // Clear any pending wait tasks (on Linux, these might be waiting for connection)
+                // This prevents hanging background tasks
+                _serverToClientWaitTask = null;
+                _clientToServerWaitTask = null;
+
+                // Perform full cleanup of pipes and socket files
+                InternalCleanup();
+
+                _logger.LogInformation("Error cleanup completed successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error during error cleanup - some resources may not have been cleaned up");
+                // Don't throw - we're already handling an error, don't make it worse
+            }
+
+            await Task.CompletedTask;
+        }
+
         private void InternalCleanup()
         {
             try

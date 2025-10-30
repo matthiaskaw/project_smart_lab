@@ -165,6 +165,17 @@ namespace SmartLab.Domains.Device.Models
             {
                 _logger.LogError(ex, "Failed to initialize ProxyDevice {DeviceId}", DeviceID);
                 _isInitialized = false;
+
+                // CRITICAL: Clean up resources on error to allow retry without app restart
+                try
+                {
+                    await CleanupAfterErrorAsync();
+                }
+                catch (Exception cleanupEx)
+                {
+                    _logger.LogWarning(cleanupEx, "Error during cleanup after initialization failure - some resources may not have been cleaned");
+                }
+
                 throw;
             }
         }
@@ -466,7 +477,45 @@ namespace SmartLab.Domains.Device.Models
                 Timestamp = DateTime.Now
             };
         }
-        
+
+        private async Task CleanupAfterErrorAsync()
+        {
+            _logger.LogInformation("Cleaning up resources after initialization error for device {DeviceId}", DeviceID);
+
+            // Reset initialization state
+            _isInitialized = false;
+
+            // Stop and cleanup the process if it somehow started
+            try
+            {
+                if (_processManager != null)
+                {
+                    _logger.LogDebug("Disposing process manager");
+                    await _processManager.DisposeAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error disposing process manager during error cleanup");
+            }
+
+            // Clean up communication resources (pipes, socket files)
+            try
+            {
+                if (_communication != null)
+                {
+                    _logger.LogDebug("Performing communication error cleanup");
+                    await _communication.CleanupOnErrorAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error cleaning up communication during error cleanup");
+            }
+
+            _logger.LogInformation("Error cleanup completed for device {DeviceId}", DeviceID);
+        }
+
         public async ValueTask DisposeAsync()
         {
             if (_disposed) return;
