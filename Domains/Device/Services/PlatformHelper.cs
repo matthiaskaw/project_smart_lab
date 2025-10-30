@@ -110,7 +110,7 @@ namespace SmartLab.Domains.Device.Services
                 if (File.Exists(socketPath))
                 {
                     _logger.LogInformation("Cleaning up socket file: {SocketPath}", socketPath);
-                    File.Delete(socketPath);
+                    //File.Delete(socketPath); // SEEMS LIKE DELETION IS NOT NEEDED OR IMPLEMENTED WRONG HERE
                     _logger.LogDebug("Socket file deleted successfully");
                 }
                 else

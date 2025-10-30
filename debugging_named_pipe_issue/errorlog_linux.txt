@@ -1,0 +1,293 @@
+info: Microsoft.EntityFrameworkCore.Migrations[20411]
+      Acquiring an exclusive lock for migration application. See https://aka.ms/efcore-docs-migrations-lock for more information if this takes too long.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (26ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsLock' AND "type" = 'table';
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (14ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      INSERT OR IGNORE INTO "__EFMigrationsLock"("Id", "Timestamp") VALUES(1, '2025-10-30 12:19:21.39147+00:00');
+      SELECT changes();
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (4ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      CREATE TABLE IF NOT EXISTS "__EFMigrationsHistory" (
+          "MigrationId" TEXT NOT NULL CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY,
+          "ProductVersion" TEXT NOT NULL
+      );
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsHistory' AND "type" = 'table';
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT "MigrationId", "ProductVersion"
+      FROM "__EFMigrationsHistory"
+      ORDER BY "MigrationId";
+info: Microsoft.EntityFrameworkCore.Migrations[20405]
+      No migrations were applied. The database is already up to date.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (5ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      DELETE FROM "__EFMigrationsLock";
+info: smartlab[0]
+      Database migrations applied successfully
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      PRAGMA journal_mode=WAL;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      PRAGMA synchronous=NORMAL;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      PRAGMA cache_size=-64000;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      PRAGMA foreign_keys=ON;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      PRAGMA temp_store=MEMORY;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      PRAGMA busy_timeout=5000;
+info: smartlab[0]
+      SQLite PRAGMA settings configured
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT "d"."Id", "d"."ConfigurationJson", "d"."CreatedDate", "d"."Description", "d"."DeviceType", "d"."IsActive", "d"."ModifiedDate", "d"."Name"
+      FROM "DeviceConfigurations" AS "d"
+      WHERE "d"."IsActive"
+      ORDER BY "d"."Name"
+info: SmartLab.Domains.Device.Services.PlatformHelper[0]
+      PlatformHelper initialized for Linux
+info: SmartLab.Domains.Device.Services.DeviceFactory[0]
+      Created ProxyDevice with ID 0b631885-86a8-4710-b2e7-e13bf70e3eae
+info: SmartLab.Domains.Device.Services.DeviceRegistry[0]
+      Registered device Standalone_test with ID 0b631885-86a8-4710-b2e7-e13bf70e3eae
+info: SmartLab.Domains.Device.Controllers.DeviceController[0]
+      Loaded device Standalone_test with ID 0b631885-86a8-4710-b2e7-e13bf70e3eae
+info: smartlab[0]
+      Successfully loaded existing devices from database
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      Disposing process manager
+info: SmartLab.Domains.Device.Services.NamedPipeCommunication[0]
+      Disposing named pipe communication
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5000
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: /mnt/c/Users/matth/Documents/GitHub/project_smart_lab/bin/publish_linux_x64
+warn: Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionMiddleware[3]
+      Failed to determine the https port for redirect.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT "d"."Id", "d"."CreatedDate", "d"."DataSource", "d"."Description", "d"."DeviceId", "d"."EntryMethod", "d"."FilePath", "d"."Name", "d"."OriginalFilename", "d"."RawDataJson", "v"."Id", "v"."CreatedDate", "v"."DatasetId", "v"."ErrorType", "v"."Message", "v"."ParameterName", "v"."RowIndex"
+      FROM "Datasets" AS "d"
+      LEFT JOIN "ValidationErrors" AS "v" ON "d"."Id" = "v"."DatasetId"
+      ORDER BY "d"."Id"
+info: IndexDatasetsModel[0]
+      Loaded 0 datasets from database
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@__id_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT "d"."Id", "d"."ConfigurationJson", "d"."CreatedDate", "d"."Description", "d"."DeviceType", "d"."IsActive", "d"."ModifiedDate", "d"."Name"
+      FROM "DeviceConfigurations" AS "d"
+      WHERE "d"."Id" = @__id_0
+      LIMIT 1
+info: SmartLab.Domains.Device.Services.DeviceFactory[0]
+      Created ProxyDevice with ID 0b631885-86a8-4710-b2e7-e13bf70e3eae
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      Disposing process manager
+info: SmartLab.Domains.Device.Services.NamedPipeCommunication[0]
+      Disposing named pipe communication
+info: SmartLab.Domains.Measurement.Controllers.MeasurementController[0]
+      Getting parameters for device Standalone_test
+info: SmartLab.Domains.Device.Models.ProxyDevice[0]
+      Initializing ProxyDevice 0b631885-86a8-4710-b2e7-e13bf70e3eae
+info: SmartLab.Domains.Device.Models.ProxyDevice[0]
+      Step 1: Creating named pipes for device 0b631885-86a8-4710-b2e7-e13bf70e3eae
+info: SmartLab.Domains.Device.Services.NamedPipeCommunication[0]
+      Creating named pipes for device 0b631885-86a8-4710-b2e7-e13bf70e3eae on platform Linux
+info: SmartLab.Domains.Device.Services.NamedPipeCommunication[0]
+      Named pipes created successfully: serverToClient_0b631885-86a8-4710-b2e7-e13bf70e3eae and clientToServer_0b631885-86a8-4710-b2e7-e13bf70e3eae
+info: SmartLab.Domains.Device.Models.ProxyDevice[0]
+      Step 2: Ensuring pipes are ready for connection
+info: SmartLab.Domains.Device.Services.NamedPipeCommunication[0]
+      Linux/macOS detected - starting WaitForConnectionAsync to create socket files
+info: SmartLab.Domains.Device.Services.NamedPipeCommunication[0]
+      Socket files created and ready for client connection
+info: SmartLab.Domains.Device.Models.ProxyDevice[0]
+      Step 3: Starting external process for device 0b631885-86a8-4710-b2e7-e13bf70e3eae
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      Starting process: /mnt/c/Users/matth/Documents/GitHub/dummy_finite_measurement/run_device.sh
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      Process started successfully with ID: 1608
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Starting dummy device with ID: 0b631885-86a8-4710-b2e7-e13bf70e3eae
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Process ID: 1612
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Platform: Linux
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Starting device 0b631885-86a8-4710-b2e7-e13bf70e3eae (Dummy Finite Device)
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Connecting to named pipes...
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Connection attempt 1/10...
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Connecting to socket: /tmp/CoreFxPipe_serverToClient_0b631885-86a8-4710-b2e7-e13bf70e3eae
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Read socket connected!
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Connecting to socket: /tmp/CoreFxPipe_clientToServer_0b631885-86a8-4710-b2e7-e13bf70e3eae
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Write socket connected!
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] All pipes connected successfully!
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Connected to pipes successfully!
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Starting command listener loop...
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Waiting for command from pipe...
+info: SmartLab.Domains.Device.Models.ProxyDevice[0]
+      Step 4: Waiting for client connection to pipes
+info: SmartLab.Domains.Device.Services.NamedPipeCommunication[0]
+      Waiting for pipe connections from client...
+info: SmartLab.Domains.Device.Services.NamedPipeCommunication[0]
+      Using pre-started wait tasks (Linux socket file creation pattern)
+info: SmartLab.Domains.Device.Services.NamedPipeCommunication[0]
+      Both pipes connected successfully
+info: SmartLab.Domains.Device.Services.NamedPipeCommunication[0]
+      Named pipe communication established successfully
+info: SmartLab.Domains.Device.Models.ProxyDevice[0]
+      Step 5: Starting protocol handshake
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Received command: INITIALIZE
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Initializing device...
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Sent response: Dummy Finite Device
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Device initialized: Dummy Finite Device
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Waiting for command from pipe...
+info: SmartLab.Domains.Device.Models.ProxyDevice[0]
+      ProxyDevice 0b631885-86a8-4710-b2e7-e13bf70e3eae initialized successfully
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Received command: GETPARAMETERS
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Handling GETPARAMETERS request...
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Sent response: PARAMETERS [{"name": "dataPoints", "displayName": "Number of Data Points", "type": "Integer", "defau...
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] GETPARAMETERS response sent
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Waiting for command from pipe...
+info: SmartLab.Domains.Device.Models.ProxyDevice[0]
+      Retrieved 2 parameters from external device
+info: SmartLab.Domains.Measurement.Controllers.MeasurementController[0]
+      Retrieved 2 parameters for device Standalone_test
+info: SmartLab.Domains.Device.Models.ProxyDevice[0]
+      Disposing ProxyDevice 0b631885-86a8-4710-b2e7-e13bf70e3eae
+info: SmartLab.Domains.Device.Models.ProxyDevice[0]
+      Sending FINISH command during disposal
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Received command: FINISH
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Measurement finished, shutting down
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Sent response: FINISHED
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Device shutting down
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      Process exited with code: 0
+2025-10-30 13:19:33 [Information] INFO: ConfigureParameters: Retrieved 2 parameters for device 0b631885-86a8-4710-b2e7-e13bf70e3eae
+2025-10-30 13:19:34 [Information] INFO: ConfigureParameters POST: DeviceId=0b631885-86a8-4710-b2e7-e13bf70e3eae, MeasurementName='test_new', Parameters.Count=2, ParameterValues.Count=2
+2025-10-30 13:19:34 [Information] INFO: ConfigureParameters: Starting measurement 'test_new' on device 0b631885-86a8-4710-b2e7-e13bf70e3eae with 2 parameters
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@__id_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT "d"."Id", "d"."ConfigurationJson", "d"."CreatedDate", "d"."Description", "d"."DeviceType", "d"."IsActive", "d"."ModifiedDate", "d"."Name"
+      FROM "DeviceConfigurations" AS "d"
+      WHERE "d"."Id" = @__id_0
+      LIMIT 1
+info: SmartLab.Domains.Device.Services.DeviceFactory[0]
+      Created ProxyDevice with ID 0b631885-86a8-4710-b2e7-e13bf70e3eae
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      Disposing process manager
+info: SmartLab.Domains.Device.Services.NamedPipeCommunication[0]
+      Disposing named pipe communication
+info: SmartLab.Domains.Measurement.Services.MeasurementFactory[0]
+      Creating measurement for device Standalone_test
+info: SmartLab.Domains.Measurement.Services.MeasurementFactory[0]
+      Created parameterized measurement with ID a4d7b258-53f9-4403-bbcf-97cdb10a3751 for device Standalone_test
+info: SmartLab.Domains.Measurement.Services.MeasurementRegistry[0]
+      Registered measurement with ID a4d7b258-53f9-4403-bbcf-97cdb10a3751
+2025-10-30 13:19:34 [Information] INFO: ParameterizedDeviceMeasurement.RunAsync: Starting measurement test_new with device Standalone_test and 2 parameters
+info: SmartLab.Domains.Device.Models.ProxyDevice[0]
+      Initializing ProxyDevice 0b631885-86a8-4710-b2e7-e13bf70e3eae
+info: SmartLab.Domains.Device.Models.ProxyDevice[0]
+      Step 1: Creating named pipes for device 0b631885-86a8-4710-b2e7-e13bf70e3eae
+info: SmartLab.Domains.Device.Services.NamedPipeCommunication[0]
+      Creating named pipes for device 0b631885-86a8-4710-b2e7-e13bf70e3eae on platform Linux
+info: SmartLab.Domains.Device.Services.PlatformHelper[0]
+      Cleaning up socket file: /tmp/CoreFxPipe_serverToClient_0b631885-86a8-4710-b2e7-e13bf70e3eae
+info: SmartLab.Domains.Device.Services.PlatformHelper[0]
+      Cleaning up socket file: /tmp/CoreFxPipe_clientToServer_0b631885-86a8-4710-b2e7-e13bf70e3eae
+info: SmartLab.Domains.Device.Services.NamedPipeCommunication[0]
+      Named pipes created successfully: serverToClient_0b631885-86a8-4710-b2e7-e13bf70e3eae and clientToServer_0b631885-86a8-4710-b2e7-e13bf70e3eae
+info: SmartLab.Domains.Device.Models.ProxyDevice[0]
+      Step 2: Ensuring pipes are ready for connection
+info: SmartLab.Domains.Device.Services.NamedPipeCommunication[0]
+      Linux/macOS detected - starting WaitForConnectionAsync to create socket files
+info: SmartLab.Domains.Measurement.Controllers.MeasurementController[0]
+      Started measurement on device Standalone_test with ID a4d7b258-53f9-4403-bbcf-97cdb10a3751 and 2 parameters
+2025-10-30 13:19:34 [Information] INFO: ConfigureParameters: Measurement started successfully with ID a4d7b258-53f9-4403-bbcf-97cdb10a3751
+info: SmartLab.Domains.Device.Services.NamedPipeCommunication[0]
+      Socket files created and ready for client connection
+info: SmartLab.Domains.Device.Models.ProxyDevice[0]
+      Step 3: Starting external process for device 0b631885-86a8-4710-b2e7-e13bf70e3eae
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      Starting process: /mnt/c/Users/matth/Documents/GitHub/dummy_finite_measurement/run_device.sh
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      Process started successfully with ID: 1615
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Starting dummy device with ID: 0b631885-86a8-4710-b2e7-e13bf70e3eae
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Process ID: 1618
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Platform: Linux
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Starting device 0b631885-86a8-4710-b2e7-e13bf70e3eae (Dummy Finite Device)
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Connecting to named pipes...
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Connection attempt 1/10...
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Connecting to socket: /tmp/CoreFxPipe_serverToClient_0b631885-86a8-4710-b2e7-e13bf70e3eae
+info: SmartLab.Domains.Device.Models.ProxyDevice[0]
+      Step 4: Waiting for client connection to pipes
+info: SmartLab.Domains.Device.Services.NamedPipeCommunication[0]
+      Waiting for pipe connections from client...
+info: SmartLab.Domains.Device.Services.NamedPipeCommunication[0]
+      Using pre-started wait tasks (Linux socket file creation pattern)
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Connection failed (attempt 1): Socket file not found: /tmp/CoreFxPipe_serverToClient_0b631885-86a8-4710-b2e7-e13bf70e3eae. Retrying in 1.0s...
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Connection attempt 2/10...
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Connecting to socket: /tmp/CoreFxPipe_serverToClient_0b631885-86a8-4710-b2e7-e13bf70e3eae
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Connection failed (attempt 2): Socket file not found: /tmp/CoreFxPipe_serverToClient_0b631885-86a8-4710-b2e7-e13bf70e3eae. Retrying in 1.0s...
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Connection attempt 3/10...
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Connecting to socket: /tmp/CoreFxPipe_serverToClient_0b631885-86a8-4710-b2e7-e13bf70e3eae
+^Cinfo: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Device shutting down
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      [ProxyDevice Output] Device stopped by user
+info: Microsoft.Hosting.Lifetime[0]
+      Application is shutting down...
+info: SmartLab.Domains.Device.Services.ProxyDeviceProcessManager[0]
+      Process exited with code: 0
+info: SmartLab.Domains.Measurement.Services.MeasurementRegistry[0]
+      Disposing measurement registry with 1 measurements

@@ -114,12 +114,16 @@ namespace SmartLab.Domains.Device.Models
                 _logger.LogInformation("Step 1: Creating named pipes for device {DeviceId}", DeviceID);
                 await _communication.CreatePipesAsync(DeviceID);
 
-                // STEP 2: Start external process (client will connect to pipes)
-                _logger.LogInformation("Step 2: Starting external process for device {DeviceId}", DeviceID);
+                // STEP 2: Ensure pipes are ready for connection (creates socket files on Linux)
+                _logger.LogInformation("Step 2: Ensuring pipes are ready for connection");
+                await _communication.EnsurePipeReadyAsync();
+
+                // STEP 3: Start external process (client can now connect to pipes)
+                _logger.LogInformation("Step 3: Starting external process for device {DeviceId}", DeviceID);
                 await _processManager.StartProcessAsync(DeviceExecutablePath, DeviceID, _cancellationTokenSource.Token);
 
-                // STEP 3: Wait for client to connect with timeout
-                _logger.LogInformation("Step 3: Waiting for client connection to pipes");
+                // STEP 4: Wait for client to connect with timeout
+                _logger.LogInformation("Step 4: Waiting for client connection to pipes");
                 using var connectionCts = CancellationTokenSource.CreateLinkedTokenSource(_cancellationTokenSource.Token);
                 connectionCts.CancelAfter(TimeSpan.FromSeconds(30)); // 30 second timeout for connection
 
@@ -132,8 +136,8 @@ namespace SmartLab.Domains.Device.Models
                     throw new TimeoutException($"Client process failed to connect to named pipes within 30 seconds for device {DeviceID}");
                 }
 
-                // STEP 4: Protocol handshake
-                _logger.LogInformation("Step 4: Starting protocol handshake");
+                // STEP 5: Protocol handshake
+                _logger.LogInformation("Step 5: Starting protocol handshake");
                 const int maxRetries = 10;
                 for (int i = 0; i < maxRetries; i++)
                 {

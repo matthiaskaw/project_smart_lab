@@ -16,6 +16,8 @@ namespace SmartLab.Domains.Device.Services
         private Guid _deviceID;
         private string? _serverToClientPipeName;
         private string? _clientToServerPipeName;
+        private Task? _serverToClientWaitTask;
+        private Task? _clientToServerWaitTask;
 
         public NamedPipeCommunication(ILogger<NamedPipeCommunication> logger, IPlatformHelper platformHelper)
         {
@@ -78,6 +80,36 @@ namespace SmartLab.Domains.Device.Services
             }
         }
 
+        public async Task EnsurePipeReadyAsync()
+        {
+            if (_serverToClient == null || _clientToServer == null)
+            {
+                throw new InvalidOperationException("Pipes must be created before ensuring readiness");
+            }
+
+            // On Linux, we need to call WaitForConnectionAsync to create the socket file
+            // On Windows, the pipe is ready immediately after creation
+            if (_platformHelper.IsLinux || _platformHelper.IsMacOS)
+            {
+                _logger.LogInformation("Linux/macOS detected - starting WaitForConnectionAsync to create socket files");
+
+                // Start waiting on both pipes in the background to create the socket files
+                // On Linux, the socket files are created when WaitForConnectionAsync is called
+                // Store the tasks so we can await them later in WaitForConnectionAsync
+                _serverToClientWaitTask = _serverToClient.WaitForConnectionAsync();
+                _clientToServerWaitTask = _clientToServer.WaitForConnectionAsync();
+
+                // Give a small delay to ensure socket files are physically created on disk
+                await Task.Delay(200);
+
+                _logger.LogInformation("Socket files created and ready for client connection");
+            }
+            else
+            {
+                _logger.LogInformation("Windows detected - pipes are ready immediately after creation");
+            }
+        }
+
         public async Task WaitForConnectionAsync(CancellationToken cancellationToken = default)
         {
             try
@@ -89,16 +121,40 @@ namespace SmartLab.Domains.Device.Services
 
                 _logger.LogInformation("Waiting for pipe connections from client...");
 
-                // Wait for connections with timeout
-                await _serverToClient.WaitForConnectionAsync(cancellationToken);
-                _logger.LogInformation("Server-to-client pipe connected");
+                // If we're on Linux and already started waiting (via EnsurePipeReadyAsync),
+                // use those tasks. Otherwise, start waiting now.
+                if (_serverToClientWaitTask != null && _clientToServerWaitTask != null)
+                {
+                    _logger.LogInformation("Using pre-started wait tasks (Linux socket file creation pattern)");
 
-                await _clientToServer.WaitForConnectionAsync(cancellationToken);
-                _logger.LogInformation("Client-to-server pipe connected");
+                    // Wait for both connections with cancellation support
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    var serverTask = _serverToClientWaitTask;
+                    var clientTask = _clientToServerWaitTask;
+
+                    await Task.WhenAll(serverTask, clientTask).WaitAsync(cancellationToken);
+
+                    _logger.LogInformation("Both pipes connected successfully");
+                }
+                else
+                {
+                    _logger.LogInformation("Starting fresh wait for connections (Windows pattern)");
+
+                    // Wait for connections with timeout
+                    await _serverToClient.WaitForConnectionAsync(cancellationToken);
+                    _logger.LogInformation("Server-to-client pipe connected");
+
+                    await _clientToServer.WaitForConnectionAsync(cancellationToken);
+                    _logger.LogInformation("Client-to-server pipe connected");
+                }
 
                 // Setup stream readers/writers
                 _writer = new StreamWriter(_serverToClient) { AutoFlush = true };
                 _reader = new StreamReader(_clientToServer);
+
+                // Clear the wait tasks
+                _serverToClientWaitTask = null;
+                _clientToServerWaitTask = null;
 
                 _logger.LogInformation("Named pipe communication established successfully");
             }
