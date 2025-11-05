@@ -24,13 +24,14 @@ public interface IDevice{
     public string DeviceName {get; set;}
     public string DeviceIdentifier {get; set;}
     
-    public Task CancelAsync(); 
+    public Task CancelAsync();
     public Task<List<string>> GetDataAsync();
+    public  Task<List<MeasurementParameter>> GetRequiredParametersAsync();
     public Task InitializeAsync();
 }
 
 public interface IParameterizedDevice : IDevice
-{
+{   //Shift to IDevice
     bool SupportsParameterDiscovery { get; }
     Task<List<MeasurementParameter>> GetRequiredParametersAsync();
     Task<StructuredMeasurementData> GetStructuredDataAsync(Dictionary<string, object> parameters);

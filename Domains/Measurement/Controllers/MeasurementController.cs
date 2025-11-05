@@ -144,13 +144,16 @@ namespace SmartLab.Domains.Measurement.Controllers
             return await StartMeasurementAsync(deviceId, name, new Dictionary<string, object>(), cancellationToken);
         }
 
-        public async Task<Guid> StartMeasurementAsync(Guid deviceId, string name, Dictionary<string, object> parameters, CancellationToken cancellationToken = default)
+
+
+        public async Task<Guid> CreateMeasurementAsync(Guid deviceId, string name)
         {
+
             try
             {
                 DeviceConfiguration deviceConfig;
                 IDevice device;
-                
+
                 // Get device configuration (minimal scope usage)
                 await using (var scope = _serviceScopeFactory.CreateAsyncScope())
                 {
@@ -174,27 +177,83 @@ namespace SmartLab.Domains.Measurement.Controllers
                 measurement.MeasurementDate = DateTime.Now;
                 measurement.DataAvailable += OnDataAvailable;//TEST
 
-                // Set parameters if the measurement supports them
-                if (measurement is ParameterizedDeviceMeasurement paramMeasurement)
-                {
-                    paramMeasurement.Parameters = parameters;
-                }
-
                 await _registry.RegisterMeasurementAsync(measurement);
-
-                // Start the measurement - device lifecycle is now managed by measurement
-                _ = measurement.RunAsync(); // Fire and forget, device disposal handled by measurement
-
-                _logger.LogInformation("Started measurement on device {DeviceName} with ID {MeasurementId} and {ParameterCount} parameters",
-                    device.DeviceName, measurement.MeasurementID, parameters.Count);
-
                 return measurement.MeasurementID;
+
+
             }
-            catch (Exception ex)
+            catch (Exception e)
             {
-                _logger.LogError(ex, "Failed to start measurement on device {DeviceId}", deviceId);
-                throw;
+
+                _logger.LogError($"MeasurementController.CreateMeasurementAsync: Exception {e}");
+                return new Guid();
             }
+        }
+
+        public async Task StartMeasurementAsync(Guid measurementID)
+        {
+
+        }
+
+
+
+        public async Task<Guid> StartMeasurementAsync(Guid measurementID, string name, Dictionary<string, object> parameters, CancellationToken cancellationToken = default)
+        {
+
+
+            
+            IMeasurement measurement = await _registry.GetMeasurementAsync(measurementID);
+            _ = measurement.RunAsync();
+            return measurement.MeasurementID;
+            // try
+            // {
+            //     DeviceConfiguration deviceConfig;
+            //     IDevice device;
+
+            //     // Get device configuration (minimal scope usage)
+            //     await using (var scope = _serviceScopeFactory.CreateAsyncScope())
+            //     {
+            //         var deviceRepository = scope.ServiceProvider.GetRequiredService<IDeviceRepository>();
+            //         var deviceFactory = scope.ServiceProvider.GetRequiredService<IDeviceFactory>();
+
+            //         // Get device configuration from repository
+            //         deviceConfig = await deviceRepository.GetByIdAsync(deviceId);
+            //         if (deviceConfig == null)
+            //         {
+            //             throw new ArgumentException($"Device configuration with ID {deviceId} not found");
+            //         }
+
+            //         // Create a fresh device instance for this measurement
+            //         device = deviceFactory.CreateDevice(deviceConfig);
+            //     }
+            //     // Scope is disposed here, but device is now independent
+
+            //     var measurement = _factory.CreateMeasurement(device);
+            //     measurement.MeasurementName = name;
+            //     measurement.MeasurementDate = DateTime.Now;
+            //     measurement.DataAvailable += OnDataAvailable;//TEST
+
+            //     // Set parameters if the measurement supports them
+            //     if (measurement is ParameterizedDeviceMeasurement paramMeasurement)
+            //     {
+            //         paramMeasurement.Parameters = parameters;
+            //     }
+
+            //     await _registry.RegisterMeasurementAsync(measurement);
+
+            //     // Start the measurement - device lifecycle is now managed by measurement
+            //     _ = measurement.RunAsync(); // Fire and forget, device disposal handled by measurement
+
+            //     _logger.LogInformation("Started measurement on device {DeviceName} with ID {MeasurementId} and {ParameterCount} parameters",
+            //         device.DeviceName, measurement.MeasurementID, parameters.Count);
+
+            //     return measurement.MeasurementID;
+            // }
+            // catch (Exception ex)
+            // {
+            //     _logger.LogError(ex, "Failed to start measurement on device {DeviceId}", deviceId);
+            //     throw;
+            // }
         }
 
         public async Task<IMeasurement?> GetMeasurementAsync(Guid measurementID)
@@ -207,69 +266,74 @@ namespace SmartLab.Domains.Measurement.Controllers
             return await _registry.GetAllMeasurementsAsync();
         }
 
-        public async Task<List<MeasurementParameter>> GetDeviceParametersAsync(Guid deviceId, CancellationToken cancellationToken = default)
+        public async Task<List<MeasurementParameter>> GetDeviceParametersAsync(Guid measurementID, CancellationToken cancellationToken = default)
         {
-             try
-              {
-                  DeviceConfiguration? deviceConfig;
-                  IDevice device;
 
-                  // Create a fresh device instance for parameter discovery (measurement-lifetime pattern)
-                  // This ensures consistent resource management and prevents socket file conflicts on Linux
-                  await using (var scope = _serviceScopeFactory.CreateAsyncScope())
-                  {
-                      var deviceRepository = scope.ServiceProvider.GetRequiredService<IDeviceRepository>();
-                      var deviceFactory = scope.ServiceProvider.GetRequiredService<IDeviceFactory>();
+            IMeasurement measurement = await _registry.GetMeasurementAsync(measurementID);
+            if (measurement == null) { throw new Exception("MeasurementController.GetMeasurementParameterAsync: measurement is null"); }
 
-                      // Get device configuration from repository
-                      deviceConfig = await deviceRepository.GetByIdAsync(deviceId);
-                      if (deviceConfig == null)
-                      {
-                          throw new ArgumentException($"Device configuration with ID {deviceId} not found");
-                      }
+            return await measurement.Device.GetRequiredParametersAsync();
+            // try
+            // {
+            //     DeviceConfiguration? deviceConfig;
+            //     IDevice device;
 
-                      // Create a fresh device instance
-                      device = deviceFactory.CreateDevice(deviceConfig);
-                  }
+            //     // Create a fresh device instance for parameter discovery (measurement-lifetime pattern)
+            //     // This ensures consistent resource management and prevents socket file conflicts on Linux
+            //     await using (var scope = _serviceScopeFactory.CreateAsyncScope())
+            //     {
+            //         var deviceRepository = scope.ServiceProvider.GetRequiredService<IDeviceRepository>();
+            //         var deviceFactory = scope.ServiceProvider.GetRequiredService<IDeviceFactory>();
 
-                  // Check if device supports parameter discovery
-                  if (device is IParameterizedDevice paramDevice && paramDevice.SupportsParameterDiscovery)
-                  {
-                      try
-                      {
-                          _logger.LogInformation("Getting parameters for device {DeviceName}", device.DeviceName);
+            //         // Get device configuration from repository
+            //         deviceConfig = await deviceRepository.GetByIdAsync(deviceId);
+            //         if (deviceConfig == null)
+            //         {
+            //             throw new ArgumentException($"Device configuration with ID {deviceId} not found");
+            //         }
 
-                          // Initialize device (creates pipes, starts process, establishes connection)
-                          await device.InitializeAsync();
+            //         // Create a fresh device instance
+            //         device = deviceFactory.CreateDevice(deviceConfig);
+            //     }
 
-                          // Get parameters from device
-                          var parameters = await paramDevice.GetRequiredParametersAsync();
-                          _logger.LogInformation("Retrieved {Count} parameters for device {DeviceName}",
-                              parameters.Count, device.DeviceName);
-                          return parameters;
-                      }
-                      finally
-                      {
-                          // Always dispose device after parameter discovery (cleans up pipes and process)
-                          if (device is IAsyncDisposable asyncDisposable)
-                          {
-                              await asyncDisposable.DisposeAsync();
-                          }
-                          else if (device is IDisposable disposable)
-                          {
-                              disposable.Dispose();
-                          }
-                      }
-                  }
+            //     // Check if device supports parameter discovery
+            //     if (device is IParameterizedDevice paramDevice && paramDevice.SupportsParameterDiscovery)
+            //     {
+            //         try
+            //         {
+            //             _logger.LogInformation("Getting parameters for device {DeviceName}", device.DeviceName);
 
-                  _logger.LogInformation("Device {DeviceName} does not support parameter discovery", device.DeviceName);
-                  return new List<MeasurementParameter>();
-              }
-              catch (Exception ex)
-              {
-                  _logger.LogError(ex, "Failed to get parameters for device {DeviceId}", deviceId);
-                  throw;
-              }
+            //             // Initialize device (creates pipes, starts process, establishes connection)
+            //             await device.InitializeAsync();
+
+            //             // Get parameters from device
+            //             var parameters = await paramDevice.GetRequiredParametersAsync();
+            //             _logger.LogInformation("Retrieved {Count} parameters for device {DeviceName}",
+            //                 parameters.Count, device.DeviceName);
+            //             return parameters;
+            //         }
+            //         finally
+            //         {
+            //             // Always dispose device after parameter discovery (cleans up pipes and process)
+            //             if (device is IAsyncDisposable asyncDisposable)
+            //             {
+            //                 await asyncDisposable.DisposeAsync();
+            //             }
+            //             else if (device is IDisposable disposable)
+            //             {
+            //                 disposable.Dispose();
+            //             }
+            //         }
+            //     }
+
+            //     _logger.LogInformation("Device {DeviceName} does not support parameter discovery", device.DeviceName);
+            //     return new List<MeasurementParameter>();
+            // }
+            // catch (Exception ex)
+            // {
+            //     _logger.LogError(ex, "Failed to get parameters for device {DeviceId}", deviceId);
+            //     throw;
+            // }
 
         }
     }

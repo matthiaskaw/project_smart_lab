@@ -55,7 +55,34 @@ public class MeasurementIndex : PageModel
     }
 
 
+        public async Task<IActionResult> OnPostStartMeasurement(string deviceId , string name)
+        {
+            Logger.Instance.LogInfo($"OnPostStartMeasurement: {name}");
+            Guid deviceID;
+            Guid.TryParse(deviceId, out deviceID);
+         
+            try
+            {
 
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    name = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                }
+
+                Logger.Instance.LogInfo($"MeasurementIndex.OnPostStartConfiguredMeasurement: Starting measurement '{name}' (config: '{name}') on device {deviceID.ToString()}");
+                Guid measurementID = await _measurementController.CreateMeasurementAsync(deviceID, name);
+                List<MeasurementParameter> parameters = await _measurementController.GetDeviceParametersAsync(measurementID);
+                //Display parameters and wait for user input... then start measuremnt
+                //await _measurementController.StartMeasurementAsync(measurementID, name);
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogError($"MeasurementIndex.OnPostStartConfiguredMeasurement: Error starting measurement: {ex.Message}");
+            }
+        
+        return RedirectToPage();
+
+        } 
     public async Task<IActionResult> OnPostCancelMeasurement(Guid id)
     {   
         Console.WriteLine($"Received id: {id}");  // Debugging to check if id is passed correctly

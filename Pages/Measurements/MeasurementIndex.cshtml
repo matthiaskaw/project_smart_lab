@@ -12,7 +12,7 @@
 {
     <div class="card mb-4">
         <div class="card-body">
-            <form id="quickStartForm">
+            <form id="quickStartForm" method="post" asp-page-handler="StartMeasurement">
                 <div class="row align-items-end">
                     <div class="col-md-6">
                         <label class="form-label">Select Device:</label>
@@ -29,7 +29,8 @@
                         <input type="text" id="measurementName" name="name" class="form-control" placeholder="Optional custom name" />
                     </div>
                     <div class="col-md-2">
-                        <button type="button" class="btn btn-success" onclick="startQuickMeasurement()">Configure & Start</button>
+                       
+                        <button type="submit" class="btn btn-success">Start</button>
                     </div>
                 </div>
             </form>
@@ -39,7 +40,7 @@
 else
 {
     <div class="alert alert-info">
-        No devices available. <a asp-page="/Settings/AddDevice">Add a device</a> to start measurements.
+        No devices available. <a asp-page="/Devices/DeviceIndex">Add a device</a> to start measurements.
     </div>
 }
 
@@ -92,22 +93,7 @@ else
 </style>
 
 <script>
-function startQuickMeasurement() {
-    var deviceSelect = document.getElementById('deviceSelect');
-    var measurementName = document.getElementById('measurementName');
-    
-    if (!deviceSelect.value) {
-        alert('Please select a device first.');
-        return;
-    }
-    
-    var url = '/measurements/configure/' + deviceSelect.value;
-    if (measurementName.value) {
-        url += '?name=' + encodeURIComponent(measurementName.value);
-    }
-    
-    window.location.href = url;
-}
+
 
 // Auto-refresh when measurements complete
 function checkForMeasurementUpdates() {
