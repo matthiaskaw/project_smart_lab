@@ -1,10 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using SmartLab.Domains.Data.Models;
-
+using SmartLab.Domains.Device.Interfaces;
 namespace SmartLab.Domains.Data.Database
 {
     public class SmartLabDbContext : DbContext
     {
+
+
+        private readonly IDeviceRepository _deviceRepository;
         public SmartLabDbContext(DbContextOptions<SmartLabDbContext> options) : base(options)
         {
         }

@@ -37,10 +37,10 @@ builder.Services.AddDbContext<SmartLabDbContext>(options =>
 builder.Services.AddSingleton<SmartLab.Domains.Core.Services.SettingsService>(SmartLab.Domains.Core.Services.SettingsService.Instance);
 
 // Register device-related services
-builder.Services.AddScoped<IDeviceFactory, DeviceFactory>();
-builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
+builder.Services.AddSingleton<IDeviceFactory, DeviceFactory>();
+builder.Services.AddScoped<IDeviceRepository, DeviceRepository>(); // Scoped - needs DbContext
 builder.Services.AddSingleton<IDeviceRegistry, DeviceRegistry>();
-builder.Services.AddScoped<IDeviceController, DeviceController>();
+builder.Services.AddSingleton<IDeviceController, DeviceController>(); // Singleton uses IServiceScopeFactory for repository access
 
 // Register platform helper for cross-platform named pipe support
 builder.Services.AddSingleton<IPlatformHelper, PlatformHelper>();
