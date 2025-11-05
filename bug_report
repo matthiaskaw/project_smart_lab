@@ -1,1 +1,19 @@
 Found bug when wrapper script for dummy device had no permission, the program had to be restarted to reset. Maybe pipe clean up on error is not solved
+
+initialized is called twice only needed at the beginning of the measurement. makes no sense to start pipes and process to get parameters than restart it when sent back parameters to device. Should be done in one "Session"
+
+- Parameterized Device necessary??
+
+
+DeviceFactory.cs:
+
+- do we need a CreateDevice and CreateProxyDevice or can we make one Method of this functions?
+
+
+MeasurementFactory.cs:
+- Do we need a IParameterizedDevice interface? Can we not just use IDevice and use a flag for parameters there. After all even 0 parameters are parameters. Or handle 0 parameters
+
+
+MeasurementController.cs:
+- Can we Remove one StartMeasurementAsync function (the one without parameters maybe?)
+- In the GetDeviceParameterAsync Method, the device is created to get the parameters, when a configured measurement is started on the measurement page. The workflow should be that on the measurement page, i can select a device and type in a name. When i start the measurement, the device should be created and parameters should be retrieved. there is no need to create the device twice. start the measurement and let the measurement do the rest.
