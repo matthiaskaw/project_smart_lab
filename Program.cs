@@ -56,7 +56,6 @@ builder.Services.AddTransient<IProxyDeviceProcessManager, ProxyDeviceProcessMana
 builder.Services.AddSingleton<IMeasurementFactory, MeasurementFactory>();
 builder.Services.AddSingleton<IMeasurementRegistry, MeasurementRegistry>();
 builder.Services.AddSingleton<IMeasurementController, MeasurementController>();
-builder.Services.AddSingleton<IConfiguredMeasurementService, ConfiguredMeasurementService>();
 
 // Register data services
 builder.Services.AddScoped<IDataService, DataService>();

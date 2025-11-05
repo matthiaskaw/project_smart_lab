@@ -2,6 +2,8 @@ Found bug when wrapper script for dummy device had no permission, the program ha
 
 initialized is called twice only needed at the beginning of the measurement. makes no sense to start pipes and process to get parameters than restart it when sent back parameters to device. Should be done in one "Session"
 
+Cancel Button on ConfigureParameters does not properly cancel the measurement: The measurement is listed as running measurement 
+
 - Parameterized Device necessary??
 
 
@@ -18,3 +20,6 @@ MeasurementController.cs:
 - Can we Remove one StartMeasurementAsync function (the one without parameters maybe?)
 - split the measurement into 3 parts: First setup parameters for device and measurement. Second Get Parameters. Third Run measurement
 - In the GetDeviceParameterAsync Method, the device is created to get the parameters, when a configured measurement is started on the measurement page. The workflow should be that on the measurement page, i can select a device and type in a name. When i start the measurement, the device should be created and parameters should be retrieved. there is no need to create the device twice. start the measurement and let the measurement do the rest.
+
+
+

@@ -52,6 +52,50 @@ namespace SmartLab.Domains.Measurement.Controllers
                 throw;
             }
         }
+        public async Task<Guid> CreateMeasurementAsync(Guid deviceId, string name)
+        {
+
+            try
+            {
+                DeviceConfiguration deviceConfig;
+                IDevice device;
+
+                // Get device configuration (minimal scope usage)
+                await using (var scope = _serviceScopeFactory.CreateAsyncScope())
+                {
+                    var deviceRepository = scope.ServiceProvider.GetRequiredService<IDeviceRepository>();
+                    var deviceFactory = scope.ServiceProvider.GetRequiredService<IDeviceFactory>();
+
+                    // Get device configuration from repository
+                    deviceConfig = await deviceRepository.GetByIdAsync(deviceId);
+                    if (deviceConfig == null)
+                    {
+                        throw new ArgumentException($"Device configuration with ID {deviceId} not found");
+                    }
+
+                    // Create a fresh device instance for this measurement
+                    device = deviceFactory.CreateDevice(deviceConfig);
+                }
+                // Scope is disposed here, but device is now independent
+
+                var measurement = _factory.CreateMeasurement(device);
+                measurement.MeasurementName = name;
+                measurement.MeasurementDate = DateTime.Now;
+                measurement.DataAvailable += OnDataAvailable;//TEST
+
+                await _registry.RegisterMeasurementAsync(measurement);
+                _logger.LogInformation($"MeasurementController.CreateMeasurementAsync: Measurement id = {measurement.MeasurementID}");
+                return measurement.MeasurementID;
+
+
+            }
+            catch (Exception e)
+            {
+
+                _logger.LogError($"MeasurementController.CreateMeasurementAsync: Exception {e}");
+                return new Guid();
+            }
+        }
 
         private void OnDataAvailable(object? invoker, (Guid measurementID, List<string> data) args)
         {
@@ -146,49 +190,7 @@ namespace SmartLab.Domains.Measurement.Controllers
 
 
 
-        public async Task<Guid> CreateMeasurementAsync(Guid deviceId, string name)
-        {
-
-            try
-            {
-                DeviceConfiguration deviceConfig;
-                IDevice device;
-
-                // Get device configuration (minimal scope usage)
-                await using (var scope = _serviceScopeFactory.CreateAsyncScope())
-                {
-                    var deviceRepository = scope.ServiceProvider.GetRequiredService<IDeviceRepository>();
-                    var deviceFactory = scope.ServiceProvider.GetRequiredService<IDeviceFactory>();
-
-                    // Get device configuration from repository
-                    deviceConfig = await deviceRepository.GetByIdAsync(deviceId);
-                    if (deviceConfig == null)
-                    {
-                        throw new ArgumentException($"Device configuration with ID {deviceId} not found");
-                    }
-
-                    // Create a fresh device instance for this measurement
-                    device = deviceFactory.CreateDevice(deviceConfig);
-                }
-                // Scope is disposed here, but device is now independent
-
-                var measurement = _factory.CreateMeasurement(device);
-                measurement.MeasurementName = name;
-                measurement.MeasurementDate = DateTime.Now;
-                measurement.DataAvailable += OnDataAvailable;//TEST
-
-                await _registry.RegisterMeasurementAsync(measurement);
-                return measurement.MeasurementID;
-
-
-            }
-            catch (Exception e)
-            {
-
-                _logger.LogError($"MeasurementController.CreateMeasurementAsync: Exception {e}");
-                return new Guid();
-            }
-        }
+        
 
         public async Task StartMeasurementAsync(Guid measurementID)
         {
