@@ -5,7 +5,7 @@ namespace SmartLab.Domains.Measurement.Interfaces
 
     public interface IMeasurement
     {
-        public Task Cancel();
+        public Task CancelAsync();
         public void End();
         public event EventHandler<(Guid measurementID, List<string> data)> DataAvailable;
         public Guid MeasurementID { get; }
