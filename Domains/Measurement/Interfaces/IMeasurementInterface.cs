@@ -14,5 +14,6 @@ namespace SmartLab.Domains.Measurement.Interfaces
         public Task RunAsync();
         public bool IsCancelled { get; }
         public IDevice Device { get; }
+        public Dictionary<string, object> Parameters { get; set; }
     }
 }

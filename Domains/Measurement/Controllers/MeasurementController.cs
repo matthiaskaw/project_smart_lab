@@ -97,7 +97,7 @@ namespace SmartLab.Domains.Measurement.Controllers
             }
         }
 
-                public async Task<IMeasurement?> GetMeasurementAsync(Guid measurementID)
+        public async Task<IMeasurement?> GetMeasurementAsync(Guid measurementID)
         {
             return await _registry.GetMeasurementAsync(measurementID);
         }
@@ -192,6 +192,7 @@ namespace SmartLab.Domains.Measurement.Controllers
         {
 
             IMeasurement measurement = await _registry.GetMeasurementAsync(measurementID);
+
             _ = measurement.RunAsync();
             return measurement.MeasurementID;
 
@@ -210,7 +211,75 @@ namespace SmartLab.Domains.Measurement.Controllers
             if (measurement == null) { throw new Exception("MeasurementController.GetMeasurementParameterAsync: measurement is null"); }
 
             return await measurement.Device.GetRequiredParametersAsync();
-            
+
         }
+
+        public async Task SetDeviceParametersAsync(Guid measurementID, Dictionary<string, object> parameters, CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation("SetDeviceParametersAsync called for measurement {MeasurementId} with {ParameterCount} parameters",
+                measurementID, parameters.Count);
+
+            // Log incoming parameters
+            foreach (var kvp in parameters)
+            {
+                _logger.LogDebug("Incoming parameter: {Name} = {Value} (Type: {Type})",
+                    kvp.Key, kvp.Value, kvp.Value?.GetType().Name ?? "null");
+            }
+
+            IMeasurement measurement = await _registry.GetMeasurementAsync(measurementID);
+            if (measurement == null)
+            {
+                _logger.LogError("SetDeviceParametersAsync: measurement {MeasurementId} is null", measurementID);
+                throw new Exception("MeasurementController.SetDeviceParametersAsync: measurement is null");
+            }
+
+            _logger.LogInformation("Retrieved measurement {MeasurementId}, Device: {DeviceName} ({DeviceId})",
+                measurementID, measurement.Device.DeviceName, measurement.Device.DeviceID);
+
+            // Get the required parameters template from the device
+            var requiredParameters = await measurement.Device.GetRequiredParametersAsync();
+            _logger.LogInformation("Device returned {RequiredParameterCount} required parameters", requiredParameters.Count);
+
+            // Log required parameters before update
+            foreach (var param in requiredParameters)
+            {
+                _logger.LogDebug("Required parameter BEFORE update: {Name} = {Value} (Type: {Type})",
+                    param.Name, param.DefaultValue, param.Type);
+            }
+
+            // Update the values from the dictionary
+            int updatedCount = 0;
+            foreach (var param in requiredParameters)
+            {
+                if (parameters.ContainsKey(param.Name))
+                {
+                    var oldValue = param.DefaultValue;
+                    param.DefaultValue = parameters[param.Name];
+                    updatedCount++;
+                    _logger.LogInformation("Updated parameter '{Name}': {OldValue} -> {NewValue}",
+                        param.Name, oldValue, param.DefaultValue);
+                }
+                else
+                {
+                    _logger.LogWarning("Parameter '{Name}' not found in incoming parameters dictionary", param.Name);
+                }
+            }
+
+            _logger.LogInformation("Updated {UpdatedCount} out of {TotalCount} parameters", updatedCount, requiredParameters.Count);
+
+            // Log required parameters after update
+            foreach (var param in requiredParameters)
+            {
+                _logger.LogDebug("Required parameter AFTER update: {Name} = {Value} (Type: {Type})",
+                    param.Name, param.DefaultValue, param.Type);
+            }
+
+            // Set the parameters on the device
+            _logger.LogInformation("Calling Device.SetRequiredParametersAsync with {ParameterCount} parameters", requiredParameters.Count);
+            await measurement.Device.SetRequiredParametersAsync(requiredParameters);
+            _logger.LogInformation("Successfully set parameters on device for measurement {MeasurementId}", measurementID);
+
+        }
+    
     }
 }

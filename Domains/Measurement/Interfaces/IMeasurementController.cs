@@ -10,6 +10,7 @@ namespace SmartLab.Domains.Measurement.Interfaces
         Task CancelMeasurementAsync(Guid measurementID, CancellationToken cancellationToken = default);
         Task<IMeasurement?> GetMeasurementAsync(Guid measurementID);
         Task<IEnumerable<IMeasurement>> GetRunningMeasurementsAsync();
-        Task<List<MeasurementParameter>> GetDeviceParametersAsync(Guid deviceId, CancellationToken cancellationToken = default);
+        Task<List<MeasurementParameter>> GetDeviceParametersAsync(Guid measurementID, CancellationToken cancellationToken = default);
+        Task SetDeviceParametersAsync(Guid measurementID, Dictionary<string, object> parameters, CancellationToken cancellationToken = default);
     }
 }

@@ -118,9 +118,15 @@ namespace smarthome_webserver.Pages.Measurements
                 {
                     return Page();
                 }
-
+                
                 Logger.Instance.LogInfo($"ConfigureParameters: Starting measurement '{MeasurementName}' on device {MeasurementID} with {parameterDict.Count} parameters");
 
+                // Set parameters on the device before starting measurement
+                Logger.Instance.LogInfo($"ConfigureParameters: Setting {parameterDict.Count} parameters on measurement {MeasurementID}");
+                await _measurementController.SetDeviceParametersAsync(MeasurementID, parameterDict);
+                Logger.Instance.LogInfo($"ConfigureParameters: Parameters set successfully on measurement {MeasurementID}");
+
+                // Start the measurement
                 var measurementId = await _measurementController.StartMeasurementAsync(MeasurementID, MeasurementName);
 
                 Logger.Instance.LogInfo($"ConfigureParameters: Measurement started successfully with ID {measurementId}");

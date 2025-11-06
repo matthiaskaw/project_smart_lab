@@ -37,28 +37,29 @@ namespace SmartLab.Domains.Measurement.Models
             {
                 Logger.Instance.LogInfo($"ParameterizedDeviceMeasurement.RunAsync: Starting measurement {MeasurementName} with device {Device.DeviceName} and {Parameters.Count} parameters");
 
-                await Device.InitializeAsync();
+                // await Device.InitializeAsync(); Initialization is done when measurement is created
 
                 if (IsCancelled)
                 {
                     Logger.Instance.LogInfo($"ParameterizedDeviceMeasurement.RunAsync: Measurement {MeasurementName} was cancelled before data collection");
                     return;
                 }
-
+                Logger.Instance.LogInfo($"DeviceMeasurement.RunAsync: Got parameters {Parameters}");
                 List<string> data;
-
+                StructuredMeasurementData structureddata = await Device.GetDataAsync();
+                data = structureddata.RawData;
                 // Check if device supports structured data with parameters
-                if (Device is IParameterizedDevice paramDevice)
-                {
-                    Logger.Instance.LogInfo($"ParameterizedDeviceMeasurement.RunAsync: Getting structured data with parameters");
-                    var structuredData = await paramDevice.GetStructuredDataAsync(Parameters);
-                    data = structuredData.RawData;
-                }
-                else
-                {
-                    Logger.Instance.LogInfo($"ParameterizedDeviceMeasurement.RunAsync: Device doesn't support parameters, using standard data collection");
-                    data = await Device.GetDataAsync();
-                }
+                // if (Device is IParameterizedDevice paramDevice)
+                // {
+                //     Logger.Instance.LogInfo($"ParameterizedDeviceMeasurement.RunAsync: Getting structured data with parameters");
+                //     var structuredData = await paramDevice.GetStructuredDataAsync(Parameters);
+                //     data = structuredData.RawData;
+                // }
+                // else
+                // {
+                //     Logger.Instance.LogInfo($"ParameterizedDeviceMeasurement.RunAsync: Device doesn't support parameters, using standard data collection");
+                //     data = await Device.GetDataAsync();
+                // }
 
                 if (!IsCancelled)
                 {
