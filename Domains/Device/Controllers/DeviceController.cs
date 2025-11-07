@@ -17,20 +17,19 @@ namespace SmartLab.Domains.Device.Controllers{
     public class DeviceController : IDeviceController
     {
         private readonly IDeviceFactory _factory;
-        private readonly IDeviceRepository _repository;
+        private readonly IServiceScopeFactory _scopeFactory;
         private readonly IDeviceRegistry _registry;
         private readonly ILogger<DeviceController> _logger;
-        private static DeviceController? _instance;
         private static readonly object _lock = new object();
 
         public DeviceController(
             IDeviceFactory factory,
-            IDeviceRepository repository,
+            IServiceScopeFactory scopeFactory,
             IDeviceRegistry registry,
             ILogger<DeviceController> logger)
         {
             _factory = factory;
-            _repository = repository;
+            _scopeFactory = scopeFactory;
             _registry = registry;
             _logger = logger;
         }
@@ -50,12 +49,19 @@ namespace SmartLab.Domains.Device.Controllers{
                 }
 
                 var device = _factory.CreateDevice(config);
-                await _repository.SaveAsync(config);
+
+                // Use scoped repository for database access
+                using (var scope = _scopeFactory.CreateScope())
+                {
+                    var repository = scope.ServiceProvider.GetRequiredService<IDeviceRepository>();
+                    await repository.SaveAsync(config);
+                }
+
                 await _registry.RegisterDeviceAsync(device);
-                
-                _logger.LogInformation("Created and registered device {DeviceName} with ID {DeviceId}", 
+
+                _logger.LogInformation("Created and registered device {DeviceName} with ID {DeviceId}",
                     config.DeviceName, config.DeviceID);
-                
+
                 return device;
             }
             catch (Exception ex)
@@ -68,14 +74,22 @@ namespace SmartLab.Domains.Device.Controllers{
         {
             try
             {
-                var configurations = await _repository.GetAllAsync();
+                IEnumerable<DeviceConfiguration> configurations;
+
+                // Use scoped repository for database access
+                using (var scope = _scopeFactory.CreateScope())
+                {
+                    var repository = scope.ServiceProvider.GetRequiredService<IDeviceRepository>();
+                    configurations = await repository.GetAllAsync();
+                }
+
                 foreach (var config in configurations)
                 {
                     if (_factory.CanCreateDevice(config))
                     {
                         var device = _factory.CreateDevice(config);
                         await _registry.RegisterDeviceAsync(device);
-                        _logger.LogInformation("Loaded device {DeviceName} with ID {DeviceId}", 
+                        _logger.LogInformation("Loaded device {DeviceName} with ID {DeviceId}",
                             config.DeviceName, config.DeviceID);
                     }
                     else
@@ -103,24 +117,7 @@ namespace SmartLab.Domains.Device.Controllers{
             return _registry.GetAllDevices();
         }
 
-        [Obsolete("Use dependency injection instead of singleton pattern")]
-        public static DeviceController Instance
-        {
-            get
-            {
-                if (_instance == null)
-                {
-                    lock (_lock)
-                    {
-                        if (_instance == null)
-                        {
-                            throw new InvalidOperationException("DeviceController must be configured through dependency injection. Use IDeviceController interface.");
-                        }
-                    }
-                }
-                return _instance;
-            }
-        }
+        
         public async Task<IDevice?> RequestDeviceAsync(string deviceName)
         {
             try
@@ -151,7 +148,14 @@ namespace SmartLab.Domains.Device.Controllers{
             try
             {
                 await _registry.UnregisterDeviceAsync(id);
-                await _repository.DeleteAsync(id);
+
+                // Use scoped repository for database access
+                using (var scope = _scopeFactory.CreateScope())
+                {
+                    var repository = scope.ServiceProvider.GetRequiredService<IDeviceRepository>();
+                    await repository.DeleteAsync(id);
+                }
+
                 _logger.LogInformation("Removed device with ID {DeviceId}", id);
             }
             catch (Exception ex)
@@ -173,7 +177,7 @@ namespace SmartLab.Domains.Device.Controllers{
             try
             {
                 ArgumentNullException.ThrowIfNull(device);
-                
+
                 // Update device configuration in repository
                 var config = new DeviceConfiguration
                 {
@@ -182,9 +186,15 @@ namespace SmartLab.Domains.Device.Controllers{
                     DeviceExecutablePath = device.DeviceExecutablePath ?? "",
                     DeviceIdentifier = device.DeviceIdentifier ?? ""
                 };
-                
-                await _repository.SaveAsync(config);
-                _logger.LogInformation("Updated device {DeviceName} with ID {DeviceId}", 
+
+                // Use scoped repository for database access
+                using (var scope = _scopeFactory.CreateScope())
+                {
+                    var repository = scope.ServiceProvider.GetRequiredService<IDeviceRepository>();
+                    await repository.SaveAsync(config);
+                }
+
+                _logger.LogInformation("Updated device {DeviceName} with ID {DeviceId}",
                     device.DeviceName, device.DeviceID);
             }
             catch (Exception ex)

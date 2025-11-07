@@ -1,4 +1,4 @@
-@page "/measurements/configure/{deviceId:guid}"
+@page
 @using SmartLab.Domains.Measurement.Models
 @model smarthome_webserver.Pages.Measurements.ConfigureParametersModel
 @{
@@ -23,7 +23,7 @@
                     @if (Model.Parameters?.Any() == true)
                     {
                         <form method="post">
-                            <input type="hidden" asp-for="DeviceId" />
+                            <input type="hidden" asp-for="MeasurementID" />
                             <input type="hidden" asp-for="DeviceName" />
 
                             <div class="form-group mb-3">
@@ -170,7 +170,7 @@
                         </div>
                         
                         <form method="post" asp-page-handler="StartWithoutParameters">
-                            <input type="hidden" asp-for="DeviceId" />
+                            <input type="hidden" asp-for="MeasurementID" />
                             <input type="hidden" asp-for="DeviceName" />
                             
                             <div class="form-group mb-3">

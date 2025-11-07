@@ -13,7 +13,7 @@ using System.Text.Json;
 
 namespace SmartLab.Domains.Device.Models
 {
-    public class ProxyDevice : IDevice, IParameterizedDevice, IAsyncDisposable
+    public class ProxyDevice : IDevice, IAsyncDisposable
     {
         private readonly IProxyDeviceCommunication _communication;
         private readonly IProxyDeviceProcessManager _processManager;
@@ -78,12 +78,12 @@ namespace SmartLab.Domains.Device.Models
             }
         }
 
-        public async Task<List<string>> GetDataAsync()
-        {
-            // Backward compatibility - use structured data with defaults
-            var structuredData = await GetStructuredDataAsync(new Dictionary<string, object>());
-            return structuredData.RawData;
-        }
+        // public async Task<List<string>> GetDataAsync()
+        // {
+        //     // Backward compatibility - use structured data with defaults
+        //     var structuredData = await GetStructuredDataAsync(new Dictionary<string, object>());
+        //     return structuredData.RawData;
+        // }
 
         public async Task InitializeAsync()
         {
@@ -196,7 +196,7 @@ namespace SmartLab.Domains.Device.Models
                 {
                     await InitializeAsync();
                 }
-                
+                _logger.LogInformation($"ProxyDevice.GetRequiredParametersAsync: Sending GETPARAMETER");
                 await _communication.SendCommandAsync("GETPARAMETERS", _cancellationTokenSource.Token);
                 var response = await _communication.ReceiveResponseAsync(_cancellationTokenSource.Token);
                 
@@ -250,37 +250,90 @@ namespace SmartLab.Domains.Device.Models
                 return new List<MeasurementParameter>(); // Fallback to no parameters
             }
         }
-        
-        public async Task<StructuredMeasurementData> GetStructuredDataAsync(Dictionary<string, object> parameters)
+        public async Task SetRequiredParametersAsync(List<MeasurementParameter> parameters)
         {
-            try
-            {
-                // Send parameters to external device
                 if (parameters.Any())
                 {
-                    var parametersJson = System.Text.Json.JsonSerializer.Serialize(parameters);
-                    await _communication.SendCommandAsync($"SETPARAMETERS:{parametersJson}", 
+                    // Convert List<MeasurementParameter> to Dictionary<string, object> for Python device
+                    // Python expects: {"minvoltage": 10, "maxvoltage": 10000, ...}
+                    var parameterDict = parameters.ToDictionary(
+                        p => p.Name,
+                        p => p.DefaultValue
+                    );
+
+                    _logger.LogInformation("SetRequiredParametersAsync: Sending {ParameterCount} parameters to device: {Parameters}",
+                        parameterDict.Count, string.Join(", ", parameterDict.Select(kvp => $"{kvp.Key}={kvp.Value}")));
+
+                    var parametersJson = System.Text.Json.JsonSerializer.Serialize(parameterDict);
+                    await _communication.SendCommandAsync($"SETPARAMETERS:{parametersJson}",
                         _cancellationTokenSource.Token);
-                    
+
                     var paramResponse = await _communication.ReceiveResponseAsync(_cancellationTokenSource.Token);
                     if (paramResponse != "PARAMS_SET")
                     {
+                        _logger.LogError("SetRequiredParametersAsync: Device returned error: {Response}", paramResponse);
                         throw new InvalidOperationException($"Failed to set parameters: {paramResponse}");
                     }
+
+                    _logger.LogInformation("SetRequiredParametersAsync: Parameters set successfully on device");
                 }
+
+
+        }        
+        public async Task<StructuredMeasurementData> GetDataAsync()
+        {
+            try
+            {
+                _logger.LogInformation("ProxyDevice.GetRequiredParametersAsync: Trying to set parameters on proxy");
+                // Send parameters to external device
+                _logger.LogInformation("Sending GETDATA_STRUCTURED command");
+                await _communication.SendCommandAsync("GETDATA_STRUCTURED", _cancellationTokenSource.Token);
+                var dataResponse = await _communication.ReceiveResponseAsync(_cancellationTokenSource.Token);
                 
+                _logger.LogInformation("Received data response: {Response}", dataResponse?.Substring(0, Math.Min(dataResponse.Length, 200)) + (dataResponse?.Length > 200 ? "..." : ""));
+                
+                StructuredMeasurementData result;
+        //        if (dataResponse.StartsWith("DATA:"))
+          //      {
+                var jsonData = dataResponse.Substring(5); // Remove "DATA:" prefix
+                _logger.LogInformation("Attempting to deserialize JSON data (length: {Length})", jsonData.Length);
+                
+                var options = new JsonSerializerOptions 
+                { 
+                    PropertyNameCaseInsensitive = true,
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                };
+                var structuredData = System.Text.Json.JsonSerializer.Deserialize<StructuredMeasurementData>(jsonData, options);
+
+                if (structuredData == null)
+                {
+                    _logger.LogInformation("Unsuccessfully deserialized structured data null", structuredData.RawData?.Count ?? 0);
+                    return new StructuredMeasurementData();
+
+                }
+
+                _logger.LogInformation("Unsuccessfully deserialized structured data null", structuredData.RawData?.Count ?? 0);
+                
+                result = structuredData;
+                return result;
+
+            //    }
+
+                // Note: FINISH command is sent during device disposal, not here
+                // This allows the device to potentially be reused for multiple measurements
+
                 // Check if device supports breakpoints
-                bool useBreakpoints = parameters.ContainsKey("useBreakpoints") && 
-                                    bool.TryParse(parameters["useBreakpoints"]?.ToString(), out bool bp) && bp;
+                // bool useBreakpoints = parameters.ContainsKey("useBreakpoints") && 
+                //                     bool.TryParse(parameters["useBreakpoints"]?.ToString(), out bool bp) && bp;
                 
-                if (useBreakpoints)
-                {
-                    return await GetStructuredDataWithBreakpointsAsync(parameters);
-                }
-                else
-                {
-                    return await GetStructuredDataTraditionalAsync(parameters);
-                }
+                // if (useBreakpoints)
+                // {
+                //     return await GetStructuredDataWithBreakpointsAsync(parameters);
+                // }
+                // else
+                // {
+                //     return await GetStructuredDataTraditionalAsync(parameters);
+                // }
             }
             catch (Exception ex)
             {
@@ -290,7 +343,7 @@ namespace SmartLab.Domains.Device.Models
         }
         
         private async Task<StructuredMeasurementData> GetStructuredDataTraditionalAsync(Dictionary<string, object> parameters)
-        {
+        {   //OBSOLETE
             // Request structured data
             _logger.LogInformation("Sending GETDATA_STRUCTURED command");
             await _communication.SendCommandAsync("GETDATA_STRUCTURED", _cancellationTokenSource.Token);

@@ -1,11 +1,13 @@
 using SmartLab.Domains.Device.Interfaces;
 using SmartLab.Domains.Measurement.Interfaces;
 using SmartLab.Domains.Core.Services;
+using SmartLab.Domains.Data.Interfaces;
 
 namespace SmartLab.Domains.Measurement.Models
 {
     public class DeviceMeasurement : IMeasurement
     {
+        public Dictionary<string, object> Parameters { get; set; } = new Dictionary<string, object>();
         private bool _isCancelled = false;
         private readonly CancellationTokenSource _cancellationTokenSource = new();
 
@@ -23,40 +25,55 @@ namespace SmartLab.Domains.Measurement.Models
 
         public DeviceMeasurement(IDevice device)
         {
+
             Device = device ?? throw new ArgumentNullException(nameof(device));
             MeasurementID = Guid.NewGuid();
             MeasurementDate = DateTime.Now;
         }
 
-        public virtual async Task RunAsync()
+        public async Task RunAsync()
         {
             try
             {
-                Logger.Instance.LogInfo($"DeviceMeasurement.RunAsync: Starting measurement {MeasurementName} with device {Device.DeviceName}");
+                Logger.Instance.LogInfo($"ParameterizedDeviceMeasurement.RunAsync: Starting measurement {MeasurementName} with device {Device.DeviceName} and {Parameters.Count} parameters");
 
-                await Device.InitializeAsync();
+                // await Device.InitializeAsync(); Initialization is done when measurement is created
 
-                if (_cancellationTokenSource.Token.IsCancellationRequested)
+                if (IsCancelled)
                 {
-                    Logger.Instance.LogInfo($"DeviceMeasurement.RunAsync: Measurement {MeasurementName} was cancelled before data collection");
+                    Logger.Instance.LogInfo($"ParameterizedDeviceMeasurement.RunAsync: Measurement {MeasurementName} was cancelled before data collection");
                     return;
                 }
+                Logger.Instance.LogInfo($"DeviceMeasurement.RunAsync: Got parameters {Parameters}");
+                List<string> data;
+                StructuredMeasurementData structureddata = await Device.GetDataAsync();
+                data = structureddata.RawData;
+                // Check if device supports structured data with parameters
+                // if (Device is IParameterizedDevice paramDevice)
+                // {
+                //     Logger.Instance.LogInfo($"ParameterizedDeviceMeasurement.RunAsync: Getting structured data with parameters");
+                //     var structuredData = await paramDevice.GetStructuredDataAsync(Parameters);
+                //     data = structuredData.RawData;
+                // }
+                // else
+                // {
+                //     Logger.Instance.LogInfo($"ParameterizedDeviceMeasurement.RunAsync: Device doesn't support parameters, using standard data collection");
+                //     data = await Device.GetDataAsync();
+                // }
 
-                var data = await Device.GetDataAsync();
-
-                if (!_cancellationTokenSource.Token.IsCancellationRequested)
+                if (!IsCancelled)
                 {
-                    Logger.Instance.LogInfo($"DeviceMeasurement.RunAsync: Measurement {MeasurementName} completed with {data.Count} data points");
+                    Logger.Instance.LogInfo($"ParameterizedDeviceMeasurement.RunAsync: Measurement {MeasurementName} completed with {data.Count} data points");
                     OnDataAvailable(data);
                 }
                 else
                 {
-                    Logger.Instance.LogInfo($"DeviceMeasurement.RunAsync: Measurement {MeasurementName} was cancelled during data collection");
+                    Logger.Instance.LogInfo($"ParameterizedDeviceMeasurement.RunAsync: Measurement {MeasurementName} was cancelled during data collection");
                 }
             }
             catch (Exception ex)
             {
-                Logger.Instance.LogError($"DeviceMeasurement.RunAsync: Error in measurement {MeasurementName}: {ex.Message}");
+                Logger.Instance.LogError($"ParameterizedDeviceMeasurement.RunAsync: Error in measurement {MeasurementName}: {ex.Message}");
                 throw;
             }
             finally
@@ -66,18 +83,18 @@ namespace SmartLab.Domains.Measurement.Models
                 {
                     try
                     {
-                        Logger.Instance.LogInfo($"DeviceMeasurement.RunAsync: Disposing device {Device.DeviceName} after measurement");
+                        Logger.Instance.LogInfo($"ParameterizedDeviceMeasurement.RunAsync: Disposing device {Device.DeviceName} after measurement");
                         await disposableDevice.DisposeAsync();
                     }
                     catch (Exception ex)
                     {
-                        Logger.Instance.LogError($"DeviceMeasurement.RunAsync: Error disposing device {Device.DeviceName}: {ex.Message}");
+                        Logger.Instance.LogError($"ParameterizedDeviceMeasurement.RunAsync: Error disposing device {Device.DeviceName}: {ex.Message}");
                     }
                 }
             }
         }
 
-        public async Task Cancel()
+        public async Task CancelAsync()
         {
             try
             {
@@ -127,5 +144,6 @@ namespace SmartLab.Domains.Measurement.Models
             Dispose(true);
             GC.SuppressFinalize(this);
         }
+
     }
 }
