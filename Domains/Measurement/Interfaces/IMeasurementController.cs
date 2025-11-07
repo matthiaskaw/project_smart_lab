@@ -5,7 +5,7 @@ namespace SmartLab.Domains.Measurement.Interfaces
 {
     public interface IMeasurementController
     {
-        Task<Guid> StartMeasurementAsync(Guid measurementID, string name, CancellationToken cancellationToken = default);
+        Task<Guid> StartMeasurementAsync(Guid measurementID, string name, string description = "", CancellationToken cancellationToken = default);
         public Task<Guid> CreateMeasurementAsync(Guid deviceId, string name);
         Task CancelMeasurementAsync(Guid measurementID, CancellationToken cancellationToken = default);
         Task<IMeasurement?> GetMeasurementAsync(Guid measurementID);

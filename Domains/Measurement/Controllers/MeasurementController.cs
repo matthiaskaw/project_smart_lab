@@ -131,7 +131,9 @@ namespace SmartLab.Domains.Measurement.Controllers
                             {
                                 Id = args.measurementID,
                                 Name = measurement.MeasurementName,
-                                Description = "Device measurement data",
+                                Description = string.IsNullOrEmpty(measurement.MeasurementDescription)
+                                    ? "Device measurement data"
+                                    : measurement.MeasurementDescription,
                                 CreatedDate = measurement.MeasurementDate,
                                 DataSource = DataSource.Device,
                                 EntryMethod = EntryMethod.DeviceMeasurement,
@@ -188,10 +190,11 @@ namespace SmartLab.Domains.Measurement.Controllers
             });
         }
 
-        public async Task<Guid> StartMeasurementAsync(Guid measurementID, string name, CancellationToken cancellationToken = default)
+        public async Task<Guid> StartMeasurementAsync(Guid measurementID, string name, string description = "", CancellationToken cancellationToken = default)
         {
 
             IMeasurement measurement = await _registry.GetMeasurementAsync(measurementID);
+            measurement.MeasurementDescription = description;
 
             _ = measurement.RunAsync();
             return measurement.MeasurementID;

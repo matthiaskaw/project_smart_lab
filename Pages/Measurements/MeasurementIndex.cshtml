@@ -15,9 +15,9 @@
             <form id="quickStartForm" method="post" asp-page-handler="StartMeasurement">
                 <div class="row align-items-end">
                     <div class="col-md-6">
-                        <label class="form-label">Select Device:</label>
+                        <label class="form-label">Select Measurement:</label>
                         <select id="deviceSelect" name="deviceId" class="form-control" required>
-                            <option value="">-- Select a device --</option>
+                            <option value="">-- Select a measurement --</option>
                             @foreach(var device in Model.AvailableDevices)
                             {
                                 <option value="@device.Value">@device.Text</option>

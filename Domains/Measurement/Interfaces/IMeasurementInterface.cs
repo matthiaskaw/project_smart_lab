@@ -11,6 +11,7 @@ namespace SmartLab.Domains.Measurement.Interfaces
         public Guid MeasurementID { get; }
         public DateTime MeasurementDate { get; set; }
         string MeasurementName { get; set; }
+        string MeasurementDescription { get; set; }
         public Task RunAsync();
         public bool IsCancelled { get; }
         public IDevice Device { get; }

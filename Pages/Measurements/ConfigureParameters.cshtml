@@ -31,6 +31,12 @@
                                 <input asp-for="MeasurementName" class="form-control" placeholder="Enter measurement name" required />
                             </div>
 
+                            <div class="form-group mb-3">
+                                <label asp-for="MeasurementDescription" class="form-label">Measurement Description</label>
+                                <textarea asp-for="MeasurementDescription" class="form-control" rows="3" placeholder="Enter an optional description for this measurement"></textarea>
+                                <small class="form-text text-muted">Optional: Add notes about the measurement conditions, purpose, or any relevant information.</small>
+                            </div>
+
                             <hr />
                             <h5>Device Parameters</h5>
 
@@ -66,31 +72,74 @@
 
                                                 @if (!string.IsNullOrEmpty(Model.Parameters[i].Description))
                                                 {
-                                                    <p class="text-muted mb-2"><small>@Model.Parameters[i].Description</small></p>
+                                                    <div class="alert alert-info py-2 px-3 mb-2 mt-2">
+                                                        <small><i class="bi bi-info-circle"></i> @Model.Parameters[i].Description</small>
+                                                    </div>
                                                 }
                                             </div>
                                             <div class="col-md-4">
                                                 <div class="parameter-info">
-                                                    <small class="text-muted">
-                                                        <strong>Type:</strong> @Model.Parameters[i].Type<br>
-                                                        @if (Model.Parameters[i].ValidationRules.ContainsKey("min") || Model.Parameters[i].ValidationRules.ContainsKey("max"))
+                                                    <div class="mb-2">
+                                                        <span class="badge bg-primary">@Model.Parameters[i].Type</span>
+                                                        @if (Model.Parameters[i].IsRequired)
                                                         {
-                                                            <strong>Range:</strong> 
-                                                            @(Model.Parameters[i].ValidationRules.ContainsKey("min") ? Model.Parameters[i].ValidationRules["min"] : "any") 
-                                                            <text>to</text>
-                                                            @(Model.Parameters[i].ValidationRules.ContainsKey("max") ? Model.Parameters[i].ValidationRules["max"] : "any")
+                                                            <span class="badge bg-danger">Required</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="badge bg-secondary">Optional</span>
+                                                        }
+                                                    </div>
+
+                                                    @if (Model.Parameters[i].ValidationRules.ContainsKey("min") || Model.Parameters[i].ValidationRules.ContainsKey("max"))
+                                                    {
+                                                        <div class="mb-2">
+                                                            <strong class="d-block mb-1" style="font-size: 0.85rem;">Range:</strong>
+                                                            <span class="badge bg-success">
+                                                                Min: @(Model.Parameters[i].ValidationRules.ContainsKey("min") ? Model.Parameters[i].ValidationRules["min"] : "none")@(Model.Parameters[i].Unit ?? "")
+                                                            </span>
+                                                            <span class="badge bg-warning text-dark">
+                                                                Max: @(Model.Parameters[i].ValidationRules.ContainsKey("max") ? Model.Parameters[i].ValidationRules["max"] : "none")@(Model.Parameters[i].Unit ?? "")
+                                                            </span>
+                                                        </div>
+                                                    }
+
+                                                    @if (Model.Parameters[i].ValidationRules.ContainsKey("minLength") || Model.Parameters[i].ValidationRules.ContainsKey("maxLength"))
+                                                    {
+                                                        <div class="mb-2">
+                                                            <strong class="d-block mb-1" style="font-size: 0.85rem;">Length:</strong>
+                                                            @if (Model.Parameters[i].ValidationRules.ContainsKey("minLength"))
+                                                            {
+                                                                <span class="badge bg-success">
+                                                                    Min: @Model.Parameters[i].ValidationRules["minLength"] chars
+                                                                </span>
+                                                            }
+                                                            @if (Model.Parameters[i].ValidationRules.ContainsKey("maxLength"))
+                                                            {
+                                                                <span class="badge bg-warning text-dark">
+                                                                    Max: @Model.Parameters[i].ValidationRules["maxLength"] chars
+                                                                </span>
+                                                            }
+                                                        </div>
+                                                    }
+
+                                                    @if (Model.Parameters[i].ValidationRules.ContainsKey("options"))
+                                                    {
+                                                        <div class="mb-2">
+                                                            <strong class="d-block mb-1" style="font-size: 0.85rem;">Options:</strong>
+                                                            <small class="text-muted">@Model.Parameters[i].ValidationRules["options"]</small>
+                                                        </div>
+                                                    }
+
+                                                    <div class="mt-2">
+                                                        <small class="text-muted">
+                                                            <strong>Default:</strong> @Model.Parameters[i].DefaultValue
                                                             @if (!string.IsNullOrEmpty(Model.Parameters[i].Unit))
                                                             {
                                                                 <text> @Model.Parameters[i].Unit</text>
                                                             }
-                                                            <br>
-                                                        }
-                                                        <strong>Default:</strong> @Model.Parameters[i].DefaultValue
-                                                        @if (!string.IsNullOrEmpty(Model.Parameters[i].Unit))
-                                                        {
-                                                            <text> @Model.Parameters[i].Unit</text>
-                                                        }
-                                                    </small>
+                                                        </small>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -172,12 +221,18 @@
                         <form method="post" asp-page-handler="StartWithoutParameters">
                             <input type="hidden" asp-for="MeasurementID" />
                             <input type="hidden" asp-for="DeviceName" />
-                            
+
                             <div class="form-group mb-3">
                                 <label asp-for="MeasurementName" class="form-label">Measurement Name</label>
                                 <input asp-for="MeasurementName" class="form-control" placeholder="Enter measurement name" required />
                             </div>
-                            
+
+                            <div class="form-group mb-3">
+                                <label asp-for="MeasurementDescription" class="form-label">Measurement Description</label>
+                                <textarea asp-for="MeasurementDescription" class="form-control" rows="3" placeholder="Enter an optional description for this measurement"></textarea>
+                                <small class="form-text text-muted">Optional: Add notes about the measurement conditions, purpose, or any relevant information.</small>
+                            </div>
+
                             <div class="d-flex justify-content-between">
                                 <a asp-page="/Measurements/MeasurementIndex" class="btn btn-secondary">Cancel</a>
                                 <button type="submit" class="btn btn-primary">Start Measurement</button>
@@ -228,16 +283,29 @@
 
 .parameter-info {
     background-color: #f8f9fa;
-    padding: 12px;
-    border-radius: 6px;
-    border: 1px solid #e9ecef;
+    padding: 15px;
+    border-radius: 8px;
+    border: 2px solid #e9ecef;
 }
 
 .parameter-info strong {
     color: #495057;
 }
 
+.parameter-info .badge {
+    margin-right: 4px;
+    margin-bottom: 4px;
+    font-size: 0.75rem;
+    padding: 0.35rem 0.6rem;
+}
+
 .fw-bold {
     font-weight: 600 !important;
+}
+
+.alert-info {
+    background-color: #d1ecf1;
+    border-color: #bee5eb;
+    color: #0c5460;
 }
 </style>

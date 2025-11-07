@@ -14,6 +14,7 @@ namespace SmartLab.Domains.Measurement.Models
         public Guid MeasurementID { get; }
         public DateTime MeasurementDate { get; set; }
         public string MeasurementName { get; set; } = string.Empty;
+        public string MeasurementDescription { get; set; } = string.Empty;
         public bool IsCancelled => _isCancelled;
         public IDevice Device { get; }
         public event EventHandler<(Guid measurementID, List<string> data)>? DataAvailable;
