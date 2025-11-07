@@ -47,4 +47,17 @@ namespace SmartLab.Domains.Data.Interfaces
         List<ValidationError> ValidateDuplicates(List<ManualDataPoint> dataPoints);
         List<ValidationError> ValidateParameterConsistency(List<ManualDataPoint> dataPoints);
     }
+
+    public interface IDataExportService
+    {
+        /// <summary>
+        /// Exports a dataset to CSV format
+        /// </summary>
+        Task<byte[]> ExportToCsvAsync(Guid datasetId);
+
+        /// <summary>
+        /// Exports a dataset to JSON format
+        /// </summary>
+        Task<byte[]> ExportToJsonAsync(Guid datasetId);
+    }
 }

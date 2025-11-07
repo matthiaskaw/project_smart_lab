@@ -1,0 +1,7 @@
+
+
+
+
+Measurement Data needs to be handled correctly. parameters (metadata) need to be stored. Currently only the raw data is saved.
+
+Initialization is still done twice

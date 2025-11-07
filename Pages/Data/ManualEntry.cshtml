@@ -22,12 +22,18 @@
             </div>
             <div class="mb-3">
                 <label class="form-label">Dataset Date:</label>
-                <input class="form-control" type="datetime-local" id="dataset_Date_time" asp-for="DatasetDateTime" required />
-                <span asp-validation-for="DatasetDateTime" class="text-danger"></span>
-                <div class="form-text">Select the date and time when this dataset was created.</div>
+                <input class="form-control" type="date" id="dataset_date" asp-for="DatasetDate" required />
+                <span asp-validation-for="DatasetDate" class="text-danger"></span>
+                <div class="form-text">Select the date when this dataset was created.</div>
             </div>
             <div class="mb-3">
-                <label class="form-label">Dataset Description <small class="text-muted">(Optional)</small>:</label>
+                <label class="form-label">Dataset Time:</label>
+                <input class="form-control" type="time" id="dataset_time" asp-for="DatasetTime" required />
+                <span asp-validation-for="DatasetTime" class="text-danger"></span>
+                <div class="form-text">Select the time (HH:mm) when this dataset was created.</div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Dataset Description 
                 <textarea class="form-control" asp-for="DatasetDescription" rows="3" placeholder="Enter a description for your dataset (optional)"></textarea>
                 <span asp-validation-for="DatasetDescription" class="text-danger"></span>
                 <div class="form-text">You can leave this field empty if you don't want to add a description.</div>
@@ -48,52 +54,32 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const dateTimeInput = document.getElementById("dataset_Date_time");
-        
-        // Format current date and time for datetime-local input
+        const dateInput = document.getElementById("dataset_date");
+        const timeInput = document.getElementById("dataset_time");
+
+        // Set current date and time as defaults
         const now = new Date();
-        
-        // Adjust for local timezone to avoid UTC offset issues
-        const localDateTime = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
-        
-        // Format to datetime-local format: YYYY-MM-DDTHH:MM
-        const formatted = localDateTime.toISOString().slice(0, 16);
-        
-        // Only set if the field is empty (prevents overriding server values)
-        if (!dateTimeInput.value) {
-            dateTimeInput.value = formatted;
-            console.log("Set datetime field to:", formatted);
-        }
-        
-        // Add client-side validation
-        dateTimeInput.addEventListener('change', function() {
-            const selectedDate = new Date(this.value);
-            const now = new Date();
-            
-            if (isNaN(selectedDate.getTime())) {
-                this.setCustomValidity('Please enter a valid date and time.');
-            } else if (selectedDate > now) {
-                this.setCustomValidity('Date cannot be in the future.');
-            } else {
-                this.setCustomValidity('');
-            }
-        });
-        
-        // Set max date to current datetime
-        const maxDateTime = localDateTime.toISOString().slice(0, 16);
-        dateTimeInput.setAttribute('max', maxDateTime);
-        
+
+        // Format date as YYYY-MM-DD
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        dateInput.value = `${year}-${month}-${day}`;
+
+        // Format time as HH:MM
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        timeInput.value = `${hours}:${minutes}`;
+
+        // No client-side date/time validation - user can select any date and time
+
         // Debug: Check description field validation
         const descriptionTextarea = document.querySelector('textarea[name="DatasetDescription"]');
         if (descriptionTextarea) {
-            console.log('Description field found:', descriptionTextarea);
-            console.log('Description required attribute:', descriptionTextarea.hasAttribute('required'));
-            console.log('Description validation message:', descriptionTextarea.validationMessage);
-            
             // Ensure it's explicitly not required
             descriptionTextarea.removeAttribute('required');
             descriptionTextarea.setAttribute('aria-required', 'false');
-            
+
             // Add event listener to debug validation
             descriptionTextarea.addEventListener('invalid', function(e) {
                 console.log('Description field validation error:', e.target.validationMessage);

@@ -120,29 +120,19 @@ namespace SmartLab.Domains.Data.Models
     public class DatasetSummary
     {
         public Guid Id { get; set; }
-        
+
         public string Name { get; set; } = string.Empty;
-        
+
         public string Description { get; set; } = string.Empty;
-        
+
         public DateTime CreatedDate { get; set; }
-        
+
         public DataSource DataSource { get; set; }
-        
+
         public EntryMethod EntryMethod { get; set; }
-        
-        public int DataPointCount { get; set; }
-        
-        public int ParameterCount { get; set; }
-        
-        public DateTime? FirstTimestamp { get; set; }
-        
-        public DateTime? LastTimestamp { get; set; }
-        
-        public List<string> ParameterNames { get; set; } = new();
-        
+
         public bool HasValidationErrors { get; set; }
-        
+
         public int ValidationErrorCount { get; set; }
     }
 }

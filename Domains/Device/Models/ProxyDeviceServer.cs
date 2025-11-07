@@ -13,7 +13,7 @@ using System.Text.Json;
 
 namespace SmartLab.Domains.Device.Models
 {
-    public class ProxyDevice : IDevice, IParameterizedDevice, IAsyncDisposable
+    public class ProxyDevice : IDevice, IAsyncDisposable
     {
         private readonly IProxyDeviceCommunication _communication;
         private readonly IProxyDeviceProcessManager _processManager;
@@ -78,12 +78,12 @@ namespace SmartLab.Domains.Device.Models
             }
         }
 
-        public async Task<List<string>> GetDataAsync()
-        {
-            // Backward compatibility - use structured data with defaults
-            var structuredData = await GetStructuredDataAsync(new Dictionary<string, object>());
-            return structuredData.RawData;
-        }
+        // public async Task<List<string>> GetDataAsync()
+        // {
+        //     // Backward compatibility - use structured data with defaults
+        //     var structuredData = await GetStructuredDataAsync(new Dictionary<string, object>());
+        //     return structuredData.RawData;
+        // }
 
         public async Task InitializeAsync()
         {
@@ -114,12 +114,16 @@ namespace SmartLab.Domains.Device.Models
                 _logger.LogInformation("Step 1: Creating named pipes for device {DeviceId}", DeviceID);
                 await _communication.CreatePipesAsync(DeviceID);
 
-                // STEP 2: Start external process (client will connect to pipes)
-                _logger.LogInformation("Step 2: Starting external process for device {DeviceId}", DeviceID);
+                // STEP 2: Ensure pipes are ready for connection (creates socket files on Linux)
+                _logger.LogInformation("Step 2: Ensuring pipes are ready for connection");
+                await _communication.EnsurePipeReadyAsync();
+
+                // STEP 3: Start external process (client can now connect to pipes)
+                _logger.LogInformation("Step 3: Starting external process for device {DeviceId}", DeviceID);
                 await _processManager.StartProcessAsync(DeviceExecutablePath, DeviceID, _cancellationTokenSource.Token);
 
-                // STEP 3: Wait for client to connect with timeout
-                _logger.LogInformation("Step 3: Waiting for client connection to pipes");
+                // STEP 4: Wait for client to connect with timeout
+                _logger.LogInformation("Step 4: Waiting for client connection to pipes");
                 using var connectionCts = CancellationTokenSource.CreateLinkedTokenSource(_cancellationTokenSource.Token);
                 connectionCts.CancelAfter(TimeSpan.FromSeconds(30)); // 30 second timeout for connection
 
@@ -132,8 +136,8 @@ namespace SmartLab.Domains.Device.Models
                     throw new TimeoutException($"Client process failed to connect to named pipes within 30 seconds for device {DeviceID}");
                 }
 
-                // STEP 4: Protocol handshake
-                _logger.LogInformation("Step 4: Starting protocol handshake");
+                // STEP 5: Protocol handshake
+                _logger.LogInformation("Step 5: Starting protocol handshake");
                 const int maxRetries = 10;
                 for (int i = 0; i < maxRetries; i++)
                 {
@@ -141,7 +145,7 @@ namespace SmartLab.Domains.Device.Models
 
                     var response = await _communication.ReceiveResponseAsync(_cancellationTokenSource.Token);
 
-                    if (response == "Test Device")
+                    if (!String.IsNullOrEmpty(response))
                     {
                         _logger.LogInformation("ProxyDevice {DeviceId} initialized successfully", DeviceID);
                         _isInitialized = true;
@@ -161,6 +165,17 @@ namespace SmartLab.Domains.Device.Models
             {
                 _logger.LogError(ex, "Failed to initialize ProxyDevice {DeviceId}", DeviceID);
                 _isInitialized = false;
+
+                // CRITICAL: Clean up resources on error to allow retry without app restart
+                try
+                {
+                    await CleanupAfterErrorAsync();
+                }
+                catch (Exception cleanupEx)
+                {
+                    _logger.LogWarning(cleanupEx, "Error during cleanup after initialization failure - some resources may not have been cleaned");
+                }
+
                 throw;
             }
         }
@@ -181,7 +196,7 @@ namespace SmartLab.Domains.Device.Models
                 {
                     await InitializeAsync();
                 }
-                
+                _logger.LogInformation($"ProxyDevice.GetRequiredParametersAsync: Sending GETPARAMETER");
                 await _communication.SendCommandAsync("GETPARAMETERS", _cancellationTokenSource.Token);
                 var response = await _communication.ReceiveResponseAsync(_cancellationTokenSource.Token);
                 
@@ -235,37 +250,90 @@ namespace SmartLab.Domains.Device.Models
                 return new List<MeasurementParameter>(); // Fallback to no parameters
             }
         }
-        
-        public async Task<StructuredMeasurementData> GetStructuredDataAsync(Dictionary<string, object> parameters)
+        public async Task SetRequiredParametersAsync(List<MeasurementParameter> parameters)
         {
-            try
-            {
-                // Send parameters to external device
                 if (parameters.Any())
                 {
-                    var parametersJson = System.Text.Json.JsonSerializer.Serialize(parameters);
-                    await _communication.SendCommandAsync($"SETPARAMETERS:{parametersJson}", 
+                    // Convert List<MeasurementParameter> to Dictionary<string, object> for Python device
+                    // Python expects: {"minvoltage": 10, "maxvoltage": 10000, ...}
+                    var parameterDict = parameters.ToDictionary(
+                        p => p.Name,
+                        p => p.DefaultValue
+                    );
+
+                    _logger.LogInformation("SetRequiredParametersAsync: Sending {ParameterCount} parameters to device: {Parameters}",
+                        parameterDict.Count, string.Join(", ", parameterDict.Select(kvp => $"{kvp.Key}={kvp.Value}")));
+
+                    var parametersJson = System.Text.Json.JsonSerializer.Serialize(parameterDict);
+                    await _communication.SendCommandAsync($"SETPARAMETERS:{parametersJson}",
                         _cancellationTokenSource.Token);
-                    
+
                     var paramResponse = await _communication.ReceiveResponseAsync(_cancellationTokenSource.Token);
                     if (paramResponse != "PARAMS_SET")
                     {
+                        _logger.LogError("SetRequiredParametersAsync: Device returned error: {Response}", paramResponse);
                         throw new InvalidOperationException($"Failed to set parameters: {paramResponse}");
                     }
+
+                    _logger.LogInformation("SetRequiredParametersAsync: Parameters set successfully on device");
                 }
+
+
+        }        
+        public async Task<StructuredMeasurementData> GetDataAsync()
+        {
+            try
+            {
+                _logger.LogInformation("ProxyDevice.GetRequiredParametersAsync: Trying to set parameters on proxy");
+                // Send parameters to external device
+                _logger.LogInformation("Sending GETDATA_STRUCTURED command");
+                await _communication.SendCommandAsync("GETDATA_STRUCTURED", _cancellationTokenSource.Token);
+                var dataResponse = await _communication.ReceiveResponseAsync(_cancellationTokenSource.Token);
                 
+                _logger.LogInformation("Received data response: {Response}", dataResponse?.Substring(0, Math.Min(dataResponse.Length, 200)) + (dataResponse?.Length > 200 ? "..." : ""));
+                
+                StructuredMeasurementData result;
+        //        if (dataResponse.StartsWith("DATA:"))
+          //      {
+                var jsonData = dataResponse.Substring(5); // Remove "DATA:" prefix
+                _logger.LogInformation("Attempting to deserialize JSON data (length: {Length})", jsonData.Length);
+                
+                var options = new JsonSerializerOptions 
+                { 
+                    PropertyNameCaseInsensitive = true,
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                };
+                var structuredData = System.Text.Json.JsonSerializer.Deserialize<StructuredMeasurementData>(jsonData, options);
+
+                if (structuredData == null)
+                {
+                    _logger.LogInformation("Unsuccessfully deserialized structured data null", structuredData.RawData?.Count ?? 0);
+                    return new StructuredMeasurementData();
+
+                }
+
+                _logger.LogInformation("Unsuccessfully deserialized structured data null", structuredData.RawData?.Count ?? 0);
+                
+                result = structuredData;
+                return result;
+
+            //    }
+
+                // Note: FINISH command is sent during device disposal, not here
+                // This allows the device to potentially be reused for multiple measurements
+
                 // Check if device supports breakpoints
-                bool useBreakpoints = parameters.ContainsKey("useBreakpoints") && 
-                                    bool.TryParse(parameters["useBreakpoints"]?.ToString(), out bool bp) && bp;
+                // bool useBreakpoints = parameters.ContainsKey("useBreakpoints") && 
+                //                     bool.TryParse(parameters["useBreakpoints"]?.ToString(), out bool bp) && bp;
                 
-                if (useBreakpoints)
-                {
-                    return await GetStructuredDataWithBreakpointsAsync(parameters);
-                }
-                else
-                {
-                    return await GetStructuredDataTraditionalAsync(parameters);
-                }
+                // if (useBreakpoints)
+                // {
+                //     return await GetStructuredDataWithBreakpointsAsync(parameters);
+                // }
+                // else
+                // {
+                //     return await GetStructuredDataTraditionalAsync(parameters);
+                // }
             }
             catch (Exception ex)
             {
@@ -275,7 +343,7 @@ namespace SmartLab.Domains.Device.Models
         }
         
         private async Task<StructuredMeasurementData> GetStructuredDataTraditionalAsync(Dictionary<string, object> parameters)
-        {
+        {   //OBSOLETE
             // Request structured data
             _logger.LogInformation("Sending GETDATA_STRUCTURED command");
             await _communication.SendCommandAsync("GETDATA_STRUCTURED", _cancellationTokenSource.Token);
@@ -313,19 +381,10 @@ namespace SmartLab.Domains.Device.Models
                 _logger.LogWarning("Data response did not start with 'DATA:': {Response}", dataResponse?.Substring(0, Math.Min(dataResponse?.Length ?? 0, 100)));
                 result = await CreateFallbackData(parameters);
             }
-            
-            // Send FINISH command to signal measurement completion
-            try
-            {
-                _logger.LogInformation("Sending FINISH command to external device");
-                await _communication.SendCommandAsync("FINISH", _cancellationTokenSource.Token);
-                // Note: Don't wait for response from FINISH as the external device may terminate immediately
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to send FINISH command to external device - device may have already terminated");
-            }
-            
+
+            // Note: FINISH command is sent during device disposal, not here
+            // This allows the device to potentially be reused for multiple measurements
+
             return result;
         }
         
@@ -407,18 +466,10 @@ namespace SmartLab.Domains.Device.Models
                     _logger.LogWarning("Unexpected response during breakpoint measurement: {Response}", response);
                 }
             }
-            
-            // Send FINISH command to signal measurement completion
-            try
-            {
-                _logger.LogInformation("Sending FINISH command after breakpoint measurement");
-                await _communication.SendCommandAsync("FINISH", _cancellationTokenSource.Token);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to send FINISH command after breakpoint measurement");
-            }
-            
+
+            // Note: FINISH command is sent during device disposal, not here
+            // This allows the device to potentially be reused for multiple measurements
+
             // Return consolidated data
             var finalResult = new StructuredMeasurementData
             {
@@ -479,7 +530,45 @@ namespace SmartLab.Domains.Device.Models
                 Timestamp = DateTime.Now
             };
         }
-        
+
+        private async Task CleanupAfterErrorAsync()
+        {
+            _logger.LogInformation("Cleaning up resources after initialization error for device {DeviceId}", DeviceID);
+
+            // Reset initialization state
+            _isInitialized = false;
+
+            // Stop and cleanup the process if it somehow started
+            try
+            {
+                if (_processManager != null)
+                {
+                    _logger.LogDebug("Disposing process manager");
+                    await _processManager.DisposeAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error disposing process manager during error cleanup");
+            }
+
+            // Clean up communication resources (pipes, socket files)
+            try
+            {
+                if (_communication != null)
+                {
+                    _logger.LogDebug("Performing communication error cleanup");
+                    await _communication.CleanupOnErrorAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error cleaning up communication during error cleanup");
+            }
+
+            _logger.LogInformation("Error cleanup completed for device {DeviceId}", DeviceID);
+        }
+
         public async ValueTask DisposeAsync()
         {
             if (_disposed) return;

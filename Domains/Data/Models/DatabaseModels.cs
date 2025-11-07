@@ -42,6 +42,12 @@ namespace SmartLab.Domains.Data.Models
         [MaxLength(1000)]
         public string? FilePath { get; set; }
 
+        /// <summary>
+        /// Raw data as received from device (JSON array of strings).
+        /// Device controls the format - this is exported as-is.
+        /// </summary>
+        public string? RawDataJson { get; set; }
+
         public virtual ICollection<DataPointEntity> DataPoints { get; set; } = new List<DataPointEntity>();
 
         public virtual ICollection<ValidationErrorEntity> ValidationErrors { get; set; } = new List<ValidationErrorEntity>();
