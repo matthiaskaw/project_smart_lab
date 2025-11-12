@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using SmartLab.Domains.Data.Models;
 using SmartLab.Domains.Device.Interfaces;
+using SmartLab.Domains.Analysis.Database;
+
 namespace SmartLab.Domains.Data.Database
 {
     public class SmartLabDbContext : DbContext
@@ -16,6 +18,10 @@ namespace SmartLab.Domains.Data.Database
         public DbSet<DataPointEntity> DataPoints { get; set; }
         public DbSet<ValidationErrorEntity> ValidationErrors { get; set; }
         public DbSet<DeviceConfigurationEntity> DeviceConfigurations { get; set; }
+
+        // Analysis domain entities
+        public DbSet<AnalysisResultEntity> AnalysisResults { get; set; }
+        public DbSet<ScriptMetadataEntity> ScriptMetadata { get; set; }
 
         /// <summary>
         /// Configures SQLite PRAGMA settings for optimal performance.
@@ -93,6 +99,39 @@ namespace SmartLab.Domains.Data.Database
                 entity.HasIndex(e => e.Name);
                 entity.HasIndex(e => e.DeviceType);
                 entity.HasIndex(e => e.IsActive);
+            });
+
+            // Configure AnalysisResult entity
+            modelBuilder.Entity<AnalysisResultEntity>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedNever();
+                entity.Property(e => e.ExecutionDate).HasDefaultValueSql("datetime('now')");
+
+                entity.HasIndex(e => e.DatasetId);
+                entity.HasIndex(e => e.ScriptId);
+                entity.HasIndex(e => e.ExecutionDate);
+                entity.HasIndex(e => e.Status);
+
+                entity.HasOne(d => d.Dataset)
+                      .WithMany()
+                      .HasForeignKey(d => d.DatasetId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure ScriptMetadata entity
+            modelBuilder.Entity<ScriptMetadataEntity>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedNever();
+                entity.Property(e => e.UploadDate).HasDefaultValueSql("datetime('now')");
+                entity.Property(e => e.LastModified).HasDefaultValueSql("datetime('now')");
+
+                entity.HasIndex(e => e.UserId);
+                entity.HasIndex(e => e.Language);
+                entity.HasIndex(e => e.IsShared);
+                entity.HasIndex(e => e.IsBuiltIn);
+                entity.HasIndex(e => e.ValidationStatus);
             });
         }
     }

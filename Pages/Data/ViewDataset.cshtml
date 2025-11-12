@@ -1,0 +1,227 @@
+@page
+@model SmartLab.Pages.Data.ViewDatasetModel
+@{
+    ViewData["Title"] = "View Dataset";
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>@Model.Dataset.Name</h1>
+        <a href="/Data/DataIndex" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Datasets
+        </a>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Dataset Information -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>Dataset Information</h4>
+        </div>
+        <div class="card-body">
+            <dl class="row">
+                <dt class="col-sm-3">Description:</dt>
+                <dd class="col-sm-9">@Model.Dataset.Description</dd>
+
+                <dt class="col-sm-3">Created:</dt>
+                <dd class="col-sm-9">@Model.Dataset.CreatedDate.ToString("yyyy-MM-dd HH:mm:ss")</dd>
+
+                <dt class="col-sm-3">Source:</dt>
+                <dd class="col-sm-9">@Model.Dataset.DataSource</dd>
+
+                <dt class="col-sm-3">Data Points:</dt>
+                <dd class="col-sm-9">@Model.DataPoints.Count</dd>
+            </dl>
+        </div>
+    </div>
+
+    <!-- Run Analysis Section -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0"><i class="bi bi-graph-up"></i> Run Analysis</h4>
+        </div>
+        <div class="card-body">
+            <form method="post" asp-page-handler="RunAnalysis">
+                <input type="hidden" asp-for="DatasetId" />
+
+                <!-- Script Selection -->
+                <div class="mb-3">
+                    <label for="scriptSelect" class="form-label">Select Analysis Script</label>
+                    <select id="scriptSelect" name="scriptId" class="form-select" required>
+                        <option value="">-- Choose a script --</option>
+                        @if (Model.AvailableScripts.Any(s => s.IsBuiltIn))
+                        {
+                            <optgroup label="Built-in Scripts">
+                                @foreach (var script in Model.AvailableScripts.Where(s => s.IsBuiltIn))
+                                {
+                                    <option value="@script.Id">@script.DisplayName</option>
+                                }
+                            </optgroup>
+                        }
+                        @if (Model.AvailableScripts.Any(s => !s.IsBuiltIn && !s.IsShared))
+                        {
+                            <optgroup label="My Scripts">
+                                @foreach (var script in Model.AvailableScripts.Where(s => !s.IsBuiltIn && !s.IsShared))
+                                {
+                                    <option value="@script.Id">@script.DisplayName</option>
+                                }
+                            </optgroup>
+                        }
+                    </select>
+                </div>
+
+                <!-- Manage Scripts Link -->
+                <div class="mb-3">
+                    <a href="/Analysis/ManageScripts" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-gear"></i> Manage Scripts
+                    </a>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-play-circle"></i> Run Analysis
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Analysis Results -->
+    @if (Model.AnalysisResults.Count > 0)
+    {
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4><i class="bi bi-graph-up-arrow"></i> Analysis Results</h4>
+            </div>
+            <div class="card-body">
+                @foreach (var result in Model.AnalysisResults)
+                {
+                    <div class="analysis-result mb-4 pb-4 border-bottom">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <h5 class="mb-1">
+                                    @result.ScriptName
+                                    @if (result.Status == SmartLab.Domains.Analysis.Models.AnalysisStatus.Success)
+                                    {
+                                        <span class="badge bg-success">Success</span>
+                                    }
+                                    else if (result.Status == SmartLab.Domains.Analysis.Models.AnalysisStatus.Failed)
+                                    {
+                                        <span class="badge bg-danger">Failed</span>
+                                    }
+                                </h5>
+                                <small class="text-muted">
+                                    @result.ExecutionDate.ToString("yyyy-MM-dd HH:mm:ss") •
+                                    Execution time: @result.ExecutionTimeMs ms
+                                </small>
+                            </div>
+                            <div>
+                                <form method="post" asp-page-handler="DeleteResult" asp-route-resultId="@result.Id" style="display:inline;">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this result?')">
+                                        <i class="bi bi-trash"></i> Delete
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        @if (result.Status == SmartLab.Domains.Analysis.Models.AnalysisStatus.Success)
+                        {
+                            <!-- Display Image -->
+                            @if (!string.IsNullOrEmpty(result.ResultImagePath))
+                            {
+                                <div class="mb-3">
+                                    <img src="/analysis-results/@result.ResultImagePath"
+                                         alt="Analysis Result"
+                                         class="img-fluid border rounded"
+                                         style="max-width: 100%; height: auto;" />
+                                </div>
+                            }
+
+                            <!-- Display Statistics -->
+                            @if (result.Statistics != null && result.Statistics.Count > 0)
+                            {
+                                <div class="card">
+                                    <div class="card-header">
+                                        <strong>Statistics</strong>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            @foreach (var stat in result.Statistics)
+                                            {
+                                                <div class="col-md-3 mb-2">
+                                                    <strong>@stat.Key:</strong> @stat.Value
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="alert alert-danger">
+                                <strong>Error:</strong> @result.ErrorMessage
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Data Points Preview -->
+    <div class="card">
+        <div class="card-header">
+            <h4>Data Points Preview</h4>
+        </div>
+        <div class="card-body">
+            @if (Model.DataPoints.Count == 0)
+            {
+                <p class="text-muted">No data points available.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Parameter</th>
+                                <th>Value</th>
+                                <th>Unit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var point in Model.DataPoints.Take(20))
+                            {
+                                <tr>
+                                    <td>@point.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                    <td>@point.ParameterName</td>
+                                    <td>@point.Value</td>
+                                    <td>@point.Unit</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    @if (Model.DataPoints.Count > 20)
+                    {
+                        <p class="text-muted text-center">Showing first 20 of @Model.DataPoints.Count data points</p>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>

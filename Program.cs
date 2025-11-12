@@ -13,6 +13,9 @@ using SmartLab.Domains.Measurement.Controllers;
 using SmartLab.Domains.Data.Interfaces;
 using SmartLab.Domains.Data.Services;
 using SmartLab.Domains.Data.Database;
+using SmartLab.Domains.Analysis.Interfaces;
+using SmartLab.Domains.Analysis.Services;
+using SmartLab.Domains.Analysis.Platform;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Hosting;
@@ -42,8 +45,8 @@ builder.Services.AddScoped<IDeviceRepository, DeviceRepository>(); // Scoped - n
 builder.Services.AddSingleton<IDeviceRegistry, DeviceRegistry>();
 builder.Services.AddSingleton<IDeviceController, DeviceController>(); // Singleton uses IServiceScopeFactory for repository access
 
-// Register platform helper for cross-platform named pipe support
-builder.Services.AddSingleton<IPlatformHelper, PlatformHelper>();
+// Register platform helper for cross-platform named pipe support (Device domain)
+builder.Services.AddSingleton<SmartLab.Domains.Device.Interfaces.IPlatformHelper, PlatformHelper>();
 
 // Register socket file tracker for cleanup after crashes (Linux)
 builder.Services.AddSingleton<ISocketFileTracker, SocketFileTracker>();
@@ -62,6 +65,14 @@ builder.Services.AddScoped<IDataService, DataService>();
 builder.Services.AddScoped<IDataImportService, DataImportService>();
 builder.Services.AddScoped<IDataValidationService, DataValidationService>();
 builder.Services.AddScoped<IDataExportService, DataExportService>();
+
+// Register analysis services
+builder.Services.AddSingleton<SmartLab.Domains.Analysis.Interfaces.IPlatformHelper, AnalysisPlatformHelper>();
+builder.Services.AddScoped<IScriptValidationService, ScriptValidationService>();
+builder.Services.AddScoped<IScriptManagementService, ScriptManagementService>();
+builder.Services.AddSingleton<IScriptExecutor, PythonScriptExecutor>();
+builder.Services.AddScoped<IAnalysisService, AnalysisService>();
+builder.Services.AddScoped<ScriptSeedingService>();
 
 // Add services to the container.
 builder.Services.AddRazorPages();
@@ -102,6 +113,11 @@ await using (var scope = app.Services.CreateAsyncScope())
             await dc.LoadDevicesAsync();
             app.Logger.LogInformation("Successfully loaded existing devices from database");
         }
+
+        // Seed built-in analysis scripts
+        var scriptSeeder = scope.ServiceProvider.GetRequiredService<ScriptSeedingService>();
+        await scriptSeeder.SeedBuiltInScriptsAsync();
+        app.Logger.LogInformation("Built-in scripts seeded");
     }
     catch (Exception ex)
     {
