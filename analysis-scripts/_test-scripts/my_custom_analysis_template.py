@@ -19,7 +19,7 @@ from pathlib import Path
 from datetime import datetime
 
 
-def analyze_data(data_points, parameters):
+def analyze_data(data_points, parameters, measurement_parameters):
     """
     Main analysis logic - customize this function for your analysis.
 
@@ -28,7 +28,9 @@ def analyze_data(data_points, parameters):
             - timestamp: ISO 8601 formatted string
             - value: numeric value
             - unit: (optional) measurement unit
-        parameters: Dictionary of custom parameters passed from the UI
+        parameters: Dictionary of script execution parameters (from UI when running analysis)
+        measurement_parameters: Dictionary of original measurement parameters (from device measurement)
+            Example: {"temperature": 25, "pressure": 101.3, "duration": 60}
 
     Returns:
         Dictionary containing your analysis results
@@ -51,6 +53,7 @@ def analyze_data(data_points, parameters):
     # - Detect anomalies
     # - Analyze trends
     # - Compare against thresholds
+    # - Use measurement_parameters to understand experimental conditions
 
     results = {
         'count': count,
@@ -60,6 +63,10 @@ def analyze_data(data_points, parameters):
         'range': max_val - min_val,
         # Add your custom results here
     }
+
+    # Example: Include measurement conditions in results
+    if measurement_parameters:
+        results['measurement_conditions'] = measurement_parameters
 
     return results, values, timestamps
 
@@ -118,6 +125,7 @@ def main():
         dataset_name = input_data['datasetName']
         data_points = input_data['dataPoints']
         parameters = input_data.get('parameters', {})
+        measurement_parameters = input_data.get('measurementParameters', {})
 
         # Validate input
         if not data_points:
@@ -127,7 +135,7 @@ def main():
             raise ValueError("At least 2 data points required for analysis")
 
         # Perform analysis
-        analysis_results, values, timestamps = analyze_data(data_points, parameters)
+        analysis_results, values, timestamps = analyze_data(data_points, parameters, measurement_parameters)
 
         # Generate visualization
         output_filename = f"custom_analysis_{dataset_id[:8]}.png"

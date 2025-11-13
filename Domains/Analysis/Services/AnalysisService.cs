@@ -256,13 +256,28 @@ namespace SmartLab.Domains.Analysis.Services
             // Get data points for the dataset
             var dataPoints = await _dataService.GetDataPointsAsync(dataset.Id);
 
+            // Parse measurement parameters if available
+            Dictionary<string, object>? measurementParameters = null;
+            if (!string.IsNullOrEmpty(dataset.ParametersJson))
+            {
+                try
+                {
+                    measurementParameters = JsonSerializer.Deserialize<Dictionary<string, object>>(dataset.ParametersJson);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to parse measurement parameters for dataset {DatasetId}", dataset.Id);
+                }
+            }
+
             var inputData = new
             {
                 datasetId = dataset.Id.ToString(),
                 datasetName = dataset.Name ?? "Unknown",
                 createdDate = dataset.CreatedDate,
                 dataSource = dataset.DataSource.ToString(),
-                parameters = parameters,
+                parameters = parameters, // Script execution parameters
+                measurementParameters = measurementParameters, // Original measurement parameters
                 dataPoints = dataPoints.Select(dp => new
                 {
                     timestamp = dp.Timestamp.ToString("o"),

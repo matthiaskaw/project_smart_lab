@@ -192,7 +192,7 @@ namespace SmartLab.Domains.Device.Services
             if (!IsConnected)
                 throw new InvalidOperationException("Pipes are not connected");
 
-            try
+            try 
             {
                 await _writer.WriteLineAsync(command);
                 _logger.LogDebug("Sent command: {Command}", command);

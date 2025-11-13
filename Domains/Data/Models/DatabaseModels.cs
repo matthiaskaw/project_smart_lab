@@ -48,6 +48,12 @@ namespace SmartLab.Domains.Data.Models
         /// </summary>
         public string? RawDataJson { get; set; }
 
+        /// <summary>
+        /// Measurement parameters as JSON (key-value pairs).
+        /// Stores parameters that were passed to the device during measurement.
+        /// </summary>
+        public string? ParametersJson { get; set; }
+
         public virtual ICollection<DataPointEntity> DataPoints { get; set; } = new List<DataPointEntity>();
 
         public virtual ICollection<ValidationErrorEntity> ValidationErrors { get; set; } = new List<ValidationErrorEntity>();

@@ -4,6 +4,7 @@ using SmartLab.Domains.Data.Interfaces;
 using SmartLab.Domains.Data.Models;
 using SmartLab.Domains.Analysis.Interfaces;
 using SmartLab.Domains.Analysis.Models;
+using System.Text.Json;
 
 namespace SmartLab.Pages.Data
 {
@@ -23,6 +24,7 @@ namespace SmartLab.Pages.Data
         public List<DataPointEntity> DataPoints { get; set; } = new();
         public List<AnalysisScriptMetadata> AvailableScripts { get; set; } = new();
         public List<AnalysisResult> AnalysisResults { get; set; } = new();
+        public Dictionary<string, object>? MeasurementParameters { get; set; }
 
         public ViewDatasetModel(
             IDataService dataService,
@@ -48,6 +50,20 @@ namespace SmartLab.Pages.Data
 
                 Dataset = dataset;
                 DatasetId = Id;
+
+                // Parse measurement parameters if available
+                if (!string.IsNullOrEmpty(dataset.ParametersJson))
+                {
+                    try
+                    {
+                        MeasurementParameters = JsonSerializer.Deserialize<Dictionary<string, object>>(dataset.ParametersJson);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to parse measurement parameters for dataset {DatasetId}", Id);
+                        MeasurementParameters = null;
+                    }
+                }
 
                 // Load data points
                 DataPoints = await _dataService.GetDataPointsAsync(Id);

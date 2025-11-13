@@ -50,6 +50,32 @@
         </div>
     </div>
 
+    <!-- Measurement Parameters -->
+    @if (Model.MeasurementParameters != null && Model.MeasurementParameters.Count > 0)
+    {
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h4 class="mb-0"><i class="bi bi-sliders"></i> Measurement Parameters</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">
+                    <small>These are the parameters that were used when this measurement was collected.</small>
+                </p>
+                <div class="row">
+                    @foreach (var param in Model.MeasurementParameters)
+                    {
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="border rounded p-3 h-100">
+                                <strong class="d-block mb-1">@param.Key</strong>
+                                <span class="text-primary">@param.Value</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
     <!-- Run Analysis Section -->
     <div class="card mb-4">
         <div class="card-header bg-primary text-white">

@@ -138,7 +138,10 @@ namespace SmartLab.Domains.Measurement.Controllers
                                 DataSource = DataSource.Device,
                                 EntryMethod = EntryMethod.DeviceMeasurement,
                                 DeviceId = measurement.Device.DeviceID,
-                                RawDataJson = JsonSerializer.Serialize(args.data) // Store raw data as-is
+                                RawDataJson = JsonSerializer.Serialize(args.data), // Store raw data as-is
+                                ParametersJson = measurement.Parameters != null && measurement.Parameters.Count > 0
+                                    ? JsonSerializer.Serialize(measurement.Parameters)
+                                    : null
                             };
 
                             var datasetId = await dataService.CreateDatasetAsync(dataset);
