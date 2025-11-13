@@ -199,39 +199,77 @@ namespace SmartLab.Domains.Device.Models
                 _logger.LogInformation($"ProxyDevice.GetRequiredParametersAsync: Sending GETPARAMETER");
                 await _communication.SendCommandAsync("GETPARAMETERS", _cancellationTokenSource.Token);
                 var response = await _communication.ReceiveResponseAsync(_cancellationTokenSource.Token);
-                
+                _logger.LogInformation($"ProxyDevice.GetRequiredParameterAsync: response: {response}");
+
+                //Never enters if case
                 if (response.StartsWith("PARAMS:"))
                 {
+
                     var jsonData = response.Substring(7); // Remove "PARAMS:" prefix
-                    var options = new JsonSerializerOptions 
-                    { 
+                    var options = new JsonSerializerOptions
+                    {
                         PropertyNameCaseInsensitive = true,
                         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
                     };
-                    _cachedParameters = System.Text.Json.JsonSerializer.Deserialize<List<MeasurementParameter>>(jsonData, options) 
+                    _cachedParameters = System.Text.Json.JsonSerializer.Deserialize<List<MeasurementParameter>>(jsonData, options)
                         ?? new List<MeasurementParameter>();
                     _parameterCacheTime = DateTime.Now;
-                    
-                    _logger.LogInformation("Retrieved {Count} parameters from external device", 
+
+                    _logger.LogInformation("Retrieved {Count} parameters from external device",
                         _cachedParameters.Count);
-                    
+
                     return _cachedParameters;
                 }
                 else if (response.StartsWith("PARAMETERS "))
-                {
+                {   Logger.Instance.LogInfo($"PRoxyDevice.GetRequiredParametersAsync: RESPONSE #########: {response}");
                     var jsonData = response.Substring(11); // Remove "PARAMETERS " prefix
-                    var options = new JsonSerializerOptions 
-                    { 
-                        PropertyNameCaseInsensitive = true,
-                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-                    };
-                    _cachedParameters = System.Text.Json.JsonSerializer.Deserialize<List<MeasurementParameter>>(jsonData, options) 
-                        ?? new List<MeasurementParameter>();
+
+                    // First deserialize to JsonElement to handle custom fields
+                    using var jsonDoc = JsonDocument.Parse(jsonData);
+                    var paramArray = jsonDoc.RootElement;
+
+                    _cachedParameters = new List<MeasurementParameter>();
+
+                    foreach (var paramElement in paramArray.EnumerateArray())
+                    {
+                        var param = new MeasurementParameter
+                        {
+                            Name = paramElement.GetProperty("name").GetString() ?? "",
+                            DisplayName = paramElement.GetProperty("displayName").GetString() ?? "",
+                            Type = ParseParameterType(paramElement.GetProperty("type").GetString() ?? "String"),
+                            DefaultValue = GetDefaultValue(paramElement),
+                            IsRequired = paramElement.TryGetProperty("isRequired", out var isReq) ? isReq.GetBoolean() : false,
+                            Description = paramElement.TryGetProperty("description", out var desc) ? desc.GetString() ?? "" : "",
+                            Unit = paramElement.TryGetProperty("unit", out var unit) ? unit.GetString() : null,
+                            ValidationRules = new Dictionary<string, object>()
+                        };
+
+                        // Map "options" array to ValidationRules["options"] as comma-separated string
+                        if (paramElement.TryGetProperty("options", out var optionsElement) && optionsElement.ValueKind == JsonValueKind.Array)
+                        {
+                            var optionsList = new List<string>();
+                            foreach (var option in optionsElement.EnumerateArray())
+                            {
+                                optionsList.Add(option.GetString() ?? "");
+                            }
+                            param.ValidationRules["options"] = string.Join(",", optionsList);
+                        }
+
+                        _cachedParameters.Add(param);
+                    }
+
                     _parameterCacheTime = DateTime.Now;
-                    
-                    _logger.LogInformation("Retrieved {Count} parameters from external device", 
+
+                    _logger.LogInformation("Retrieved {Count} parameters from external device",
                         _cachedParameters.Count);
-                    
+                    foreach (var item in _cachedParameters)
+                    {
+                        Logger.Instance.LogInfo($"PRoxyDevice.GetRequiredParametersAsync: Parameter {item.Name}");
+                        if (item.ValidationRules.ContainsKey("options"))
+                        {
+                            Logger.Instance.LogInfo($"  Options: {item.ValidationRules["options"]}");
+                        }
+                    }
                     return _cachedParameters;
                 }
                 else if (response == "ERROR:UNSUPPORTED")
@@ -569,10 +607,41 @@ namespace SmartLab.Domains.Device.Models
             _logger.LogInformation("Error cleanup completed for device {DeviceId}", DeviceID);
         }
 
+        private ParameterType ParseParameterType(string typeString)
+        {
+            return typeString?.ToLowerInvariant() switch
+            {
+                "string" => ParameterType.String,
+                "integer" => ParameterType.Integer,
+                "double" => ParameterType.Double,
+                "float" => ParameterType.Double,
+                "boolean" => ParameterType.Boolean,
+                "datetime" => ParameterType.DateTime,
+                _ => ParameterType.String // Default to String
+            };
+        }
+
+        private object GetDefaultValue(JsonElement paramElement)
+        {
+            if (!paramElement.TryGetProperty("defaultValue", out var defaultValueElement))
+            {
+                return "";
+            }
+
+            return defaultValueElement.ValueKind switch
+            {
+                JsonValueKind.String => defaultValueElement.GetString() ?? "",
+                JsonValueKind.Number => defaultValueElement.TryGetInt32(out var intVal) ? intVal : defaultValueElement.GetDouble(),
+                JsonValueKind.True => true,
+                JsonValueKind.False => false,
+                _ => defaultValueElement.ToString()
+            };
+        }
+
         public async ValueTask DisposeAsync()
         {
             if (_disposed) return;
-            
+
             _logger.LogInformation("Disposing ProxyDevice {DeviceId}", DeviceID);
             
             try

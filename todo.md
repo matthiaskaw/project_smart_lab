@@ -1,5 +1,8 @@
 to do
 
+
+
+- Validation rules are not properly set or are not set at all. Consider necessity of having a validation rule 
 - data upload should accept all document files like txt, images, and others
 - encapsulate analysis script behind class to avoid user interference
 - make safety check to avoid user to click on other page while trying to set parameters for a device

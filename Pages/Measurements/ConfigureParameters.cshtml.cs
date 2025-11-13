@@ -42,8 +42,11 @@ namespace smarthome_webserver.Pages.Measurements
                 for (int i = 0; i < Parameters.Count; i++)
                 {
                     ParameterValues.Add(Parameters[i].DefaultValue?.ToString() ?? string.Empty);
+                    foreach(var str in Parameters[i].ValidationRules) {
+                        Logger.Instance.LogInfo($"#######################################: {str.Key}");
+                    }
                 }
-
+                
                 // Get device name
                 var device = await _deviceController.GetDeviceAsync(MeasurementID);
                 DeviceName = device?.DeviceName ?? $"Device {measurementID:N}";
