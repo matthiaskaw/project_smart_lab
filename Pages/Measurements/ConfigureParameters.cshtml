@@ -23,7 +23,7 @@
                     @if (Model.Parameters?.Any() == true)
                     {
                         <form method="post">
-                            <input type="hidden" asp-for="MeasurementID" />
+                            <input type="hidden" asp-for="DeviceID" />
                             <input type="hidden" asp-for="DeviceName" />
 
                             <div class="form-group mb-3">
@@ -123,9 +123,8 @@
                                                         </div>
                                                     }
 
-                                                    @if (Model.Parameters[i].ValidationRules.ContainsKey("options"))
+                                                    @if (Model.Parameters[i].ValidationRules.ContainsKey("options") && Model.Parameters[i].ValidationRules["options"] != null)
                                                     {
-
                                                         <div class="mb-2">
                                                             <strong class="d-block mb-1" style="font-size: 0.85rem;">Options:</strong>
                                                             <small class="text-muted">@Model.Parameters[i].ValidationRules["options"]</small>
@@ -148,9 +147,10 @@
                                     @switch (Model.Parameters[i].Type)
                                     {
                                         case ParameterType.String:
-                                            @if (Model.Parameters[i].ValidationRules.ContainsKey("options"))
+                                            @if (Model.Parameters[i].ValidationRules.ContainsKey("options") && Model.Parameters[i].ValidationRules["options"] != null)
                                             {
-                                                var options = Model.Parameters[i].ValidationRules["options"].ToString()?.Split(',') ?? Array.Empty<string>();
+                                                var optionsValue = Model.Parameters[i].ValidationRules["options"]?.ToString() ?? "";
+                                                var options = !string.IsNullOrEmpty(optionsValue) ? optionsValue.Split(',') : Array.Empty<string>();
                                                 <select asp-for="ParameterValues[i]" class="form-control" required="@Model.Parameters[i].IsRequired">
                                                     <option value="">-- Select Option --</option>
                                                     @foreach (var option in options)
@@ -209,7 +209,9 @@
 
                             <div class="d-flex justify-content-between mt-4">
                                 <a asp-page="/Measurements/MeasurementIndex" class="btn btn-secondary">Cancel</a>
-                                <button type="submit" class="btn btn-primary">Start Measurement</button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-play-circle"></i> Start Measurement
+                                </button>
                             </div>
                         </form>
                     }
@@ -220,7 +222,7 @@
                         </div>
                         
                         <form method="post" asp-page-handler="StartWithoutParameters">
-                            <input type="hidden" asp-for="MeasurementID" />
+                            <input type="hidden" asp-for="DeviceID" />
                             <input type="hidden" asp-for="DeviceName" />
 
                             <div class="form-group mb-3">
@@ -236,7 +238,9 @@
 
                             <div class="d-flex justify-content-between">
                                 <a asp-page="/Measurements/MeasurementIndex" class="btn btn-secondary">Cancel</a>
-                                <button type="submit" class="btn btn-primary">Start Measurement</button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-play-circle"></i> Start Measurement
+                                </button>
                             </div>
                         </form>
                     }

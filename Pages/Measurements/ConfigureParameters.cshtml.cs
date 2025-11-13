@@ -18,7 +18,7 @@ namespace smarthome_webserver.Pages.Measurements
             _deviceController = deviceController;
         }
 
-        public Guid MeasurementID { get; set; }
+        public Guid DeviceID { get; set; }
         public string DeviceName { get; set; } = string.Empty;
         public string MeasurementName { get; set; } = string.Empty;
         public string MeasurementDescription { get; set; } = string.Empty;
@@ -26,16 +26,24 @@ namespace smarthome_webserver.Pages.Measurements
         public List<string> ParameterValues { get; set; } = new List<string>();
         public string? ErrorMessage { get; set; }
 
-        public async Task<IActionResult> OnGetAsync(string measurementID)
+        public async Task<IActionResult> OnGetAsync(string deviceId, string? name = null)
         {
+            Logger.Instance.LogInfo($"ConfigureParameter.OnGet: deviceId passed = {deviceId}");
+            DeviceID = new Guid(deviceId);
+            MeasurementName = name ?? DateTime.Now.ToString("yyyyMMdd_HHmmss");
 
-            Logger.Instance.LogInfo($"ConfigureParameter.OnGet: measurementID passed = {measurementID}");
-            MeasurementID = new Guid(measurementID);
-            IMeasurement tempMeasurement = await _measurementController.GetMeasurementAsync(MeasurementID);
-            MeasurementName = tempMeasurement.MeasurementName;
             try
             {
-                Parameters = await _measurementController.GetDeviceParametersAsync(MeasurementID);
+                // Get device to fetch parameters - no measurement created yet
+                var device = await _deviceController.GetDeviceAsync(DeviceID);
+                if (device == null)
+                {
+                    ErrorMessage = $"Device {deviceId} not found";
+                    return Page();
+                }
+
+                DeviceName = device.DeviceName;
+                Parameters = await device.GetRequiredParametersAsync();
 
                 // Initialize parameter values list to match parameters count
                 ParameterValues = new List<string>();
@@ -43,19 +51,15 @@ namespace smarthome_webserver.Pages.Measurements
                 {
                     ParameterValues.Add(Parameters[i].DefaultValue?.ToString() ?? string.Empty);
                     foreach(var str in Parameters[i].ValidationRules) {
-                        Logger.Instance.LogInfo($"#######################################: {str.Key}");
+                        Logger.Instance.LogInfo($"ValidationRule: {str.Key} = {str.Value}");
                     }
                 }
-                
-                // Get device name
-                var device = await _deviceController.GetDeviceAsync(MeasurementID);
-                DeviceName = device?.DeviceName ?? $"Device {measurementID:N}";
 
-                Logger.Instance.LogInfo($"ConfigureParameters: Retrieved {Parameters.Count} parameters for device {MeasurementID}");
+                Logger.Instance.LogInfo($"ConfigureParameters: Retrieved {Parameters.Count} parameters for device {DeviceID}");
             }
             catch (Exception ex)
             {
-                Logger.Instance.LogError($"ConfigureParameters: Error getting parameters for device {MeasurementID}: {ex.Message}");
+                Logger.Instance.LogError($"ConfigureParameters: Error getting parameters for device {DeviceID}: {ex.Message}");
                 ErrorMessage = $"Error loading device parameters: {ex.Message}";
             }
 
@@ -64,7 +68,7 @@ namespace smarthome_webserver.Pages.Measurements
 
         public async Task<IActionResult> OnPostAsync()
         {
-            Logger.Instance.LogInfo($"ConfigureParameters POST: DeviceId={MeasurementID}, MeasurementName='{MeasurementName}', Parameters.Count={Parameters?.Count ?? 0}, ParameterValues.Count={ParameterValues?.Count ?? 0}");
+            Logger.Instance.LogInfo($"ConfigureParameters POST: DeviceId={DeviceID}, MeasurementName='{MeasurementName}', Parameters.Count={Parameters?.Count ?? 0}, ParameterValues.Count={ParameterValues?.Count ?? 0}");
 
             if (!ModelState.IsValid)
             {
@@ -122,18 +126,22 @@ namespace smarthome_webserver.Pages.Measurements
                 {
                     return Page();
                 }
-                
-                Logger.Instance.LogInfo($"ConfigureParameters: Starting measurement '{MeasurementName}' on device {MeasurementID} with {parameterDict.Count} parameters");
 
-                // Set parameters on the device before starting measurement
-                Logger.Instance.LogInfo($"ConfigureParameters: Setting {parameterDict.Count} parameters on measurement {MeasurementID}");
-                await _measurementController.SetDeviceParametersAsync(MeasurementID, parameterDict);
-                Logger.Instance.LogInfo($"ConfigureParameters: Parameters set successfully on measurement {MeasurementID}");
+                Logger.Instance.LogInfo($"ConfigureParameters: Creating measurement '{MeasurementName}' on device {DeviceID} with {parameterDict.Count} parameters");
+
+                // Create the measurement
+                Guid measurementID = await _measurementController.CreateMeasurementAsync(DeviceID, MeasurementName);
+                Logger.Instance.LogInfo($"ConfigureParameters: Created measurement {measurementID}");
+
+                // Set parameters on the measurement
+                Logger.Instance.LogInfo($"ConfigureParameters: Setting {parameterDict.Count} parameters on measurement {measurementID}");
+                await _measurementController.SetDeviceParametersAsync(measurementID, parameterDict);
+                Logger.Instance.LogInfo($"ConfigureParameters: Parameters set successfully on measurement {measurementID}");
 
                 // Start the measurement
-                var measurementId = await _measurementController.StartMeasurementAsync(MeasurementID, MeasurementName, MeasurementDescription);
+                await _measurementController.StartMeasurementAsync(measurementID, MeasurementName, MeasurementDescription);
 
-                Logger.Instance.LogInfo($"ConfigureParameters: Measurement started successfully with ID {measurementId}");
+                Logger.Instance.LogInfo($"ConfigureParameters: Measurement started successfully with ID {measurementID}");
 
                 return RedirectToPage("/Measurements/MeasurementIndex");
             }
@@ -155,9 +163,14 @@ namespace smarthome_webserver.Pages.Measurements
 
             try
             {
-                Logger.Instance.LogInfo($"ConfigureParameters: Starting measurement '{MeasurementName}' on device {MeasurementID} without parameters");
+                Logger.Instance.LogInfo($"ConfigureParameters: Creating and starting measurement '{MeasurementName}' on device {DeviceID} without parameters");
 
-                await _measurementController.StartMeasurementAsync(MeasurementID, MeasurementName, MeasurementDescription);
+                // Create the measurement
+                Guid measurementID = await _measurementController.CreateMeasurementAsync(DeviceID, MeasurementName);
+                Logger.Instance.LogInfo($"ConfigureParameters: Created measurement {measurementID}");
+
+                // Start measurement immediately (no parameters to set)
+                await _measurementController.StartMeasurementAsync(measurementID, MeasurementName, MeasurementDescription);
 
                 return RedirectToPage("/Measurements/MeasurementIndex");
             }

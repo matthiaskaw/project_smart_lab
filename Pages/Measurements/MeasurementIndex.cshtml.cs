@@ -70,12 +70,10 @@ namespace smarthome_webserver.Pages.Measurements
                     name = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 }
 
-                Logger.Instance.LogInfo($"MeasurementIndex.OnPostStartConfiguredMeasurement: Starting measurement '{name}' (config: '{name}') on device {deviceID.ToString()}");
-                Guid measurementID = await _measurementController.CreateMeasurementAsync(deviceID, name);
-                // List<MeasurementParameter> parameters = await _measurementController.GetDeviceParametersAsync(measurementID);
-                return Redirect($"/Measurements/ConfigureParameters?measurementID={measurementID}");
-                //Display parameters and wait for user input... then start measuremnt
-                //await _measurementController.StartMeasurementAsync(measurementID, name);
+                Logger.Instance.LogInfo($"MeasurementIndex.OnPostStartConfiguredMeasurement: Redirecting to configure parameters for device {deviceID}");
+                // Don't create measurement yet - just redirect to configuration page with device ID
+                // Measurement will be created when user clicks "Start Measurement"
+                return Redirect($"/Measurements/ConfigureParameters?deviceId={deviceID}&name={Uri.EscapeDataString(name)}");
             }
             catch (Exception ex)
             {
