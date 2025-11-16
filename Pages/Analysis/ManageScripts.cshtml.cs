@@ -25,10 +25,16 @@ namespace SmartLab.Pages.Analysis
         public async Task OnGetAsync()
         {
             var currentUserId = GetCurrentUserId();
+            _logger.LogInformation("OnGetAsync - Current user ID: {UserId}", currentUserId);
 
             BuiltInScripts = await _scriptService.GetBuiltInScriptsAsync();
+            _logger.LogInformation("Loaded {Count} built-in scripts", BuiltInScripts.Count);
+
             UserScripts = await _scriptService.GetUserScriptsAsync(currentUserId);
+            _logger.LogInformation("Loaded {Count} user scripts", UserScripts.Count);
+
             SharedScripts = await _scriptService.GetSharedScriptsAsync();
+            _logger.LogInformation("Loaded {Count} shared scripts", SharedScripts.Count);
         }
 
         public async Task<IActionResult> OnPostUploadAsync(

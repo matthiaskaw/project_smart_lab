@@ -16,9 +16,10 @@ namespace SmartLab.Domains.Analysis.Services
         private readonly SmartLabDbContext _dbContext;
         private readonly IScriptValidationService _validationService;
         private readonly ILogger<ScriptManagementService> _logger;
-        private readonly string _scriptsBaseDirectory;
+        private readonly string _scriptsBaseDirectory; // Physical absolute path
         private readonly string _builtInScriptsDirectory;
         private readonly string _userScriptsDirectory;
+        private readonly string _appRootDirectory; // Application root for virtual paths
 
         public ScriptManagementService(
             SmartLabDbContext dbContext,
@@ -30,7 +31,15 @@ namespace SmartLab.Domains.Analysis.Services
             _validationService = validationService;
             _logger = logger;
 
-            _scriptsBaseDirectory = configuration["Analysis:ScriptsDirectory"] ?? "analysis-scripts";
+            // Store application root directory for virtual path resolution
+            _appRootDirectory = Directory.GetCurrentDirectory();
+
+            // Get scripts directory (relative or absolute) and convert to absolute path
+            var scriptsDir = configuration["Analysis:ScriptsDirectory"] ?? "analysis-scripts";
+            _scriptsBaseDirectory = Path.IsPathRooted(scriptsDir)
+                ? scriptsDir
+                : Path.Combine(_appRootDirectory, scriptsDir);
+
             _builtInScriptsDirectory = Path.Combine(_scriptsBaseDirectory, "built-in");
             _userScriptsDirectory = Path.Combine(_scriptsBaseDirectory, "user-uploads");
 
@@ -43,11 +52,12 @@ namespace SmartLab.Domains.Analysis.Services
         {
             try
             {
-                return await _dbContext.ScriptMetadata
+                var entities = await _dbContext.ScriptMetadata
                     .Where(s => s.IsBuiltIn)
                     .OrderBy(s => s.DisplayName)
-                    .Select(e => MapEntityToMetadata(e))
                     .ToListAsync();
+
+                return entities.Select(e => MapEntityToMetadata(e)).ToList();
             }
             catch (Exception ex)
             {
@@ -60,11 +70,17 @@ namespace SmartLab.Domains.Analysis.Services
         {
             try
             {
-                return await _dbContext.ScriptMetadata
+                _logger.LogInformation("Querying user scripts for userId: {UserId}", userId);
+
+                var entities = await _dbContext.ScriptMetadata
                     .Where(s => s.UserId == userId && !s.IsBuiltIn)
                     .OrderByDescending(s => s.UploadDate)
-                    .Select(e => MapEntityToMetadata(e))
                     .ToListAsync();
+
+                _logger.LogInformation("Found {Count} user scripts for {UserId}", entities.Count, userId);
+
+                var result = entities.Select(e => MapEntityToMetadata(e)).ToList();
+                return result;
             }
             catch (Exception ex)
             {
@@ -77,11 +93,12 @@ namespace SmartLab.Domains.Analysis.Services
         {
             try
             {
-                return await _dbContext.ScriptMetadata
+                var entities = await _dbContext.ScriptMetadata
                     .Where(s => s.IsShared && !s.IsBuiltIn)
                     .OrderBy(s => s.DisplayName)
-                    .Select(e => MapEntityToMetadata(e))
                     .ToListAsync();
+
+                return entities.Select(e => MapEntityToMetadata(e)).ToList();
             }
             catch (Exception ex)
             {
@@ -144,10 +161,13 @@ namespace SmartLab.Domains.Analysis.Services
                 var userDir = Path.Combine(_userScriptsDirectory, userId);
                 Directory.CreateDirectory(userDir);
 
-                // Save script to file
+                // Save script to file (physical path)
                 var fileName = $"{scriptId}{extension}";
-                var filePath = Path.Combine(userDir, fileName);
-                await File.WriteAllTextAsync(filePath, scriptContent);
+                var physicalPath = Path.Combine(userDir, fileName);
+                await File.WriteAllTextAsync(physicalPath, scriptContent);
+
+                // Convert to virtual path for database storage (security best practice)
+                var virtualPath = ToVirtualPath(physicalPath);
 
                 // Create database entity
                 var entity = new ScriptMetadataEntity
@@ -170,7 +190,7 @@ namespace SmartLab.Domains.Analysis.Services
                     IsShared = false,
                     IsBuiltIn = false,
                     ExecutionCount = 0,
-                    FilePath = filePath
+                    FilePath = virtualPath  // Store virtual path, not absolute path
                 };
 
                 _dbContext.ScriptMetadata.Add(entity);
@@ -248,10 +268,14 @@ namespace SmartLab.Domains.Analysis.Services
                     return false;
                 }
 
-                // Delete the file
-                if (File.Exists(entity.FilePath))
+                // Delete the file (convert virtual path to physical)
+                if (!string.IsNullOrEmpty(entity.FilePath))
                 {
-                    File.Delete(entity.FilePath);
+                    var physicalPath = ToPhysicalPath(entity.FilePath);
+                    if (File.Exists(physicalPath))
+                    {
+                        File.Delete(physicalPath);
+                    }
                 }
 
                 // Delete from database
@@ -276,7 +300,13 @@ namespace SmartLab.Domains.Analysis.Services
             try
             {
                 var entity = await _dbContext.ScriptMetadata.FindAsync(scriptId);
-                return entity?.FilePath;
+                if (entity?.FilePath == null)
+                {
+                    return null;
+                }
+
+                // Convert virtual path from database to physical path for file access
+                return ToPhysicalPath(entity.FilePath);
             }
             catch (Exception ex)
             {
@@ -289,13 +319,13 @@ namespace SmartLab.Domains.Analysis.Services
         {
             try
             {
-                var filePath = await GetScriptPathAsync(scriptId);
-                if (filePath == null || !File.Exists(filePath))
+                var physicalPath = await GetScriptPathAsync(scriptId);
+                if (physicalPath == null || !File.Exists(physicalPath))
                 {
                     return null;
                 }
 
-                return await File.ReadAllTextAsync(filePath);
+                return await File.ReadAllTextAsync(physicalPath);
             }
             catch (Exception ex)
             {
@@ -346,6 +376,50 @@ namespace SmartLab.Domains.Analysis.Services
             {
                 return default;
             }
+        }
+
+        /// <summary>
+        /// Converts a physical absolute path to a virtual app-relative path for storage.
+        /// Example: C:\path\to\app\analysis-scripts\file.py -> ~/analysis-scripts/file.py
+        /// </summary>
+        private string ToVirtualPath(string physicalPath)
+        {
+            if (string.IsNullOrEmpty(physicalPath))
+            {
+                return physicalPath;
+            }
+
+            // Make path relative to application root
+            var relativePath = Path.GetRelativePath(_appRootDirectory, physicalPath);
+
+            // Use forward slashes and ~/ prefix for virtual paths
+            var virtualPath = "~/" + relativePath.Replace('\\', '/');
+
+            return virtualPath;
+        }
+
+        /// <summary>
+        /// Converts a virtual app-relative path to a physical absolute path for file access.
+        /// Example: ~/analysis-scripts/file.py -> C:\path\to\app\analysis-scripts\file.py
+        /// </summary>
+        private string ToPhysicalPath(string virtualPath)
+        {
+            if (string.IsNullOrEmpty(virtualPath))
+            {
+                return virtualPath;
+            }
+
+            // Handle virtual path prefix
+            if (virtualPath.StartsWith("~/"))
+            {
+                virtualPath = virtualPath.Substring(2);
+            }
+
+            // Convert forward slashes to platform-specific separators
+            virtualPath = virtualPath.Replace('/', Path.DirectorySeparatorChar);
+
+            // Combine with app root to get absolute path
+            return Path.Combine(_appRootDirectory, virtualPath);
         }
     }
 }

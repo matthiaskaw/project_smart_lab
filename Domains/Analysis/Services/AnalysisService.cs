@@ -42,7 +42,23 @@ namespace SmartLab.Domains.Analysis.Services
             _logger = logger;
             _configuration = configuration;
 
-            _outputDirectory = configuration["Analysis:OutputDirectory"] ?? "wwwroot/analysis-results";
+            var configOutputDir = configuration["Analysis:OutputDirectory"] ?? "wwwroot/analysis-results";
+            // Ensure output directory is rooted in the app directory for security
+            var appDirectory = Directory.GetCurrentDirectory();
+
+            // Strip any root from the config path to ensure it stays within app directory
+            if (Path.IsPathRooted(configOutputDir))
+            {
+                // Remove the root (e.g., C:\ or /) to make it relative
+                configOutputDir = configOutputDir.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                if (configOutputDir.Length > 1 && configOutputDir[1] == ':')
+                {
+                    // Windows absolute path like C:\path - skip drive letter and colon
+                    configOutputDir = configOutputDir.Substring(2).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                }
+            }
+
+            _outputDirectory = Path.GetFullPath(Path.Combine(appDirectory, configOutputDir));
             Directory.CreateDirectory(_outputDirectory);
         }
 
@@ -175,13 +191,14 @@ namespace SmartLab.Domains.Analysis.Services
         {
             try
             {
-                return await _dbContext.AnalysisResults
+                var entities = await _dbContext.AnalysisResults
                     .Where(r => r.DatasetId == datasetId)
                     .OrderByDescending(r => r.ExecutionDate)
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize)
-                    .Select(e => MapEntityToResult(e))
                     .ToListAsync();
+
+                return entities.Select(e => MapEntityToResult(e)).ToList();
             }
             catch (Exception ex)
             {
@@ -296,6 +313,8 @@ namespace SmartLab.Domains.Analysis.Services
         private string CreateOutputDirectory(Guid datasetId, Guid resultId)
         {
             var now = DateTime.UtcNow;
+
+            // _outputDirectory is already absolute (ensured in constructor)
             var subDir = Path.Combine(
                 _outputDirectory,
                 now.Year.ToString(),
@@ -304,7 +323,7 @@ namespace SmartLab.Domains.Analysis.Services
             );
 
             Directory.CreateDirectory(subDir);
-            return subDir;
+            return Path.GetFullPath(subDir); // Normalize the path
         }
 
         private async Task ProcessSuccessfulExecutionAsync(
@@ -314,8 +333,18 @@ namespace SmartLab.Domains.Analysis.Services
         {
             try
             {
+                // Extract JSON from script output
+                // The JSON result should be the last line that starts with '{'
+                var lines = executionResult.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                var jsonLine = lines.LastOrDefault(line => line.TrimStart().StartsWith('{'));
+
+                if (string.IsNullOrWhiteSpace(jsonLine))
+                {
+                    throw new InvalidOperationException("No JSON output found in script result");
+                }
+
                 // Parse script output as JSON
-                var outputJson = JsonDocument.Parse(executionResult.Output);
+                var outputJson = JsonDocument.Parse(jsonLine);
                 var root = outputJson.RootElement;
 
                 if (root.TryGetProperty("status", out var status) &&

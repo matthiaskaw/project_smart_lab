@@ -127,6 +127,12 @@ namespace SmartLab.Domains.Analysis.Services
                     "Script execution completed: ExitCode={ExitCode}, Duration={Duration}ms",
                     result.ExitCode, result.ExecutionTimeMs);
 
+                // Log stdout output (for debugging)
+                if (!string.IsNullOrWhiteSpace(result.Output))
+                {
+                    _logger.LogInformation("Script stdout output: {Output}", result.Output);
+                }
+
                 // Log errors if any
                 if (!string.IsNullOrWhiteSpace(result.Error))
                 {
