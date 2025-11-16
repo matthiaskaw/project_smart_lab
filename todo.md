@@ -1,7 +1,7 @@
 to do
 
 
-
+- test analysis feature with production script (analyze a smps measurement)
 - data upload should accept all document files like txt, images, and others
 - encapsulate analysis script behind class to avoid user interference
 - make safety check to avoid user to click on other page while trying to set parameters for a device
