@@ -60,7 +60,7 @@ namespace SmartLab.Domains.Data.Models
     }
 
     public class DataPointEntity
-    {
+    {   //We dont need this
         public long Id { get; set; }
 
         public Guid DatasetId { get; set; }

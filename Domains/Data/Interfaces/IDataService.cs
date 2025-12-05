@@ -28,6 +28,9 @@ namespace SmartLab.Domains.Data.Interfaces
         // Validation operations
         Task<bool> AddValidationErrorsAsync(Guid datasetId, List<ValidationError> errors);
         Task<List<ValidationErrorEntity>> GetValidationErrorsAsync(Guid datasetId);
+
+        // Maintenance operations
+        Task<int> RepairDataPointsForAllDatasetsAsync();
     }
 
     public interface IDataImportService

@@ -96,4 +96,49 @@ public class IndexDatasetsModel : PageModel
             return StatusCode(500);
         }
     }
+
+    public async Task<IActionResult> OnPostRepairDataPointsAsync()
+    {
+        try
+        {
+            _logger.LogInformation("Starting DataPoints repair for all datasets");
+            var repairedCount = await _dataService.RepairDataPointsForAllDatasetsAsync();
+
+            TempData["SuccessMessage"] = $"Successfully repaired {repairedCount} dataset(s)";
+            _logger.LogInformation("Repaired {Count} datasets", repairedCount);
+
+            return RedirectToPage();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to repair DataPoints");
+            TempData["ErrorMessage"] = "Failed to repair datasets";
+            return RedirectToPage();
+        }
+    }
+
+    public async Task<IActionResult> OnGetDebugDataAsync(Guid id)
+    {
+        try
+        {
+            var dataset = await _dataService.GetDatasetAsync(id);
+            if (dataset == null)
+            {
+                return Content("Dataset not found");
+            }
+
+            var debug = $"Dataset: {dataset.Name}\n";
+            debug += $"DataSource: {dataset.DataSource}\n";
+            debug += $"EntryMethod: {dataset.EntryMethod}\n";
+            debug += $"DataPoints count: {dataset.DataPoints.Count}\n\n";
+            debug += $"RawDataJson:\n{dataset.RawDataJson}\n\n";
+            debug += $"ParametersJson:\n{dataset.ParametersJson}";
+
+            return Content(debug, "text/plain");
+        }
+        catch (Exception ex)
+        {
+            return Content($"Error: {ex.Message}");
+        }
+    }
 }

@@ -208,15 +208,15 @@
         </div>
     }
 
-    <!-- Data Points Preview -->
+    <!-- Data Preview -->
     <div class="card">
         <div class="card-header">
-            <h4>Data Points Preview</h4>
+            <h4>Data Preview (First 5 Rows)</h4>
         </div>
         <div class="card-body">
             @if (Model.DataPoints.Count == 0)
             {
-                <p class="text-muted">No data points available.</p>
+                <p class="text-muted">No data available.</p>
             }
             else
             {
@@ -224,27 +224,23 @@
                     <table class="table table-sm table-striped">
                         <thead>
                             <tr>
-                                <th>Timestamp</th>
-                                <th>Parameter</th>
-                                <th>Value</th>
-                                <th>Unit</th>
+                                <th>#</th>
+                                <th>Raw Data</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var point in Model.DataPoints.Take(20))
+                            @foreach (var point in Model.DataPoints.Take(5))
                             {
                                 <tr>
-                                    <td>@point.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
-                                    <td>@point.ParameterName</td>
-                                    <td>@point.Value</td>
-                                    <td>@point.Unit</td>
+                                    <td>@(point.RowIndex + 1)</td>
+                                    <td><code>@point.Value</code></td>
                                 </tr>
                             }
                         </tbody>
                     </table>
-                    @if (Model.DataPoints.Count > 20)
+                    @if (Model.DataPoints.Count > 5)
                     {
-                        <p class="text-muted text-center">Showing first 20 of @Model.DataPoints.Count data points</p>
+                        <p class="text-muted text-center">Showing first 5 of @Model.DataPoints.Count rows</p>
                     }
                 </div>
             }

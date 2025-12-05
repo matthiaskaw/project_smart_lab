@@ -37,6 +37,13 @@ namespace SmartLab.Domains.Data.Services
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation("Created dataset {DatasetId} with name '{Name}'", dataset.Id, dataset.Name);
+
+                // Parse raw data into DataPoints table for analysis
+                if (!string.IsNullOrEmpty(dataset.RawDataJson))
+                {
+                    await ParseRawDataIntoDataPointsAsync(dataset.Id);
+                }
+
                 return dataset.Id;
             }
             catch (Exception ex)
@@ -49,7 +56,7 @@ namespace SmartLab.Domains.Data.Services
         public async Task<DatasetEntity?> GetDatasetAsync(Guid id)
         {
             try
-            {
+            {   
                 return await _context.Datasets
                     .Include(d => d.DataPoints)
                     .Include(d => d.ValidationErrors)
@@ -216,6 +223,9 @@ namespace SmartLab.Domains.Data.Services
                 _logger.LogInformation("Created manual dataset {DatasetId} with {LineCount} lines",
                     dataset.Id, lines.Count);
 
+                // Parse raw data into DataPoints table for analysis
+                await ParseRawDataIntoDataPointsAsync(dataset.Id);
+
                 return dataset.Id;
             }
             catch (Exception ex)
@@ -289,6 +299,9 @@ namespace SmartLab.Domains.Data.Services
                 _logger.LogInformation("Imported dataset {DatasetId} from file '{FileName}' with {LineCount} lines",
                     dataset.Id, request.File.FileName, rawLines.Count);
 
+                // Parse raw data into DataPoints table for analysis
+                await ParseRawDataIntoDataPointsAsync(dataset.Id);
+
                 return dataset.Id;
             }
             catch (Exception ex)
@@ -350,6 +363,174 @@ namespace SmartLab.Domains.Data.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to get validation errors for dataset {DatasetId}", datasetId);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Parses RawDataJson from a dataset and populates the DataPoints table.
+        /// This enables analysis scripts to access structured data.
+        /// </summary>
+        private async Task ParseRawDataIntoDataPointsAsync(Guid datasetId)
+        {
+            try
+            {
+                var dataset = await _context.Datasets.FindAsync(datasetId);
+                if (dataset == null || string.IsNullOrEmpty(dataset.RawDataJson))
+                {
+                    _logger.LogWarning("Dataset {DatasetId} has no raw data to parse", datasetId);
+                    return;
+                }
+
+                // Deserialize raw data lines
+                var rawLines = JsonSerializer.Deserialize<List<string>>(dataset.RawDataJson);
+                if (rawLines == null || rawLines.Count == 0)
+                {
+                    _logger.LogWarning("Dataset {DatasetId} has empty raw data", datasetId);
+                    return;
+                }
+
+                _logger.LogInformation("Parsing {LineCount} raw data lines for dataset {DatasetId}",
+                    rawLines.Count, datasetId);
+
+                if (rawLines.Count > 0)
+                {
+                    _logger.LogInformation("First line: {FirstLine}", rawLines[0]);
+                }
+
+                var dataPoints = new List<DataPointEntity>();
+                int rowIndex = 0;
+
+                // Parse CSV format: Timestamp,Parameter,Value,Unit,Notes
+                foreach (var line in rawLines.Skip(1)) // Skip header
+                {
+                    if (string.IsNullOrWhiteSpace(line))
+                        continue;
+
+                    var fields = ParseCsvLine(line);
+                    if (fields.Length < 3) // At minimum need timestamp, parameter, value
+                        continue;
+
+                    try
+                    {
+                        var dataPoint = new DataPointEntity
+                        {
+                            DatasetId = datasetId,
+                            Timestamp = DateTime.Parse(fields[0]),
+                            ParameterName = fields[1],
+                            Value = fields[2],
+                            Unit = fields.Length > 3 ? fields[3] : null,
+                            Notes = fields.Length > 4 ? fields[4] : null,
+                            RowIndex = rowIndex++
+                        };
+
+                        dataPoints.Add(dataPoint);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to parse line {RowIndex} in dataset {DatasetId}: {Line}",
+                            rowIndex, datasetId, line);
+                    }
+                }
+
+                _logger.LogInformation("Successfully parsed {Count} out of {TotalLines} lines for dataset {DatasetId}",
+                    dataPoints.Count, rawLines.Count - 1, datasetId);
+
+                if (dataPoints.Count > 0)
+                {
+                    await AddDataPointsAsync(datasetId, dataPoints);
+                    _logger.LogInformation("Added {Count} data points to database for dataset {DatasetId}",
+                        dataPoints.Count, datasetId);
+                }
+                else
+                {
+                    _logger.LogWarning("No valid data points could be parsed from {LineCount} lines for dataset {DatasetId}",
+                        rawLines.Count, datasetId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to parse raw data for dataset {DatasetId}", datasetId);
+                // Don't throw - this is a background operation
+            }
+        }
+
+        /// <summary>
+        /// Parses a CSV line, handling quoted fields properly.
+        /// </summary>
+        private string[] ParseCsvLine(string line)
+        {
+            var fields = new List<string>();
+            var currentField = new System.Text.StringBuilder();
+            bool inQuotes = false;
+
+            for (int i = 0; i < line.Length; i++)
+            {
+                char c = line[i];
+
+                if (c == '"')
+                {
+                    if (inQuotes && i + 1 < line.Length && line[i + 1] == '"')
+                    {
+                        // Escaped quote
+                        currentField.Append('"');
+                        i++; // Skip next quote
+                    }
+                    else
+                    {
+                        // Toggle quote state
+                        inQuotes = !inQuotes;
+                    }
+                }
+                else if (c == ',' && !inQuotes)
+                {
+                    // Field separator
+                    fields.Add(currentField.ToString());
+                    currentField.Clear();
+                }
+                else
+                {
+                    currentField.Append(c);
+                }
+            }
+
+            // Add last field
+            fields.Add(currentField.ToString());
+
+            return fields.ToArray();
+        }
+
+        /// <summary>
+        /// Repairs DataPoints for all datasets that have RawDataJson but no DataPoints.
+        /// This is useful for migrating existing datasets.
+        /// </summary>
+        public async Task<int> RepairDataPointsForAllDatasetsAsync()
+        {
+            try
+            {
+                _logger.LogInformation("Starting DataPoints repair for all datasets");
+
+                // Find all datasets that have RawDataJson but no DataPoints
+                var datasetsToRepair = await _context.Datasets
+                    .Include(d => d.DataPoints)
+                    .Where(d => d.RawDataJson != null && d.RawDataJson != "" && d.DataPoints.Count == 0)
+                    .ToListAsync();
+
+                _logger.LogInformation("Found {Count} datasets to repair", datasetsToRepair.Count);
+
+                int repairedCount = 0;
+                foreach (var dataset in datasetsToRepair)
+                {
+                    await ParseRawDataIntoDataPointsAsync(dataset.Id);
+                    repairedCount++;
+                }
+
+                _logger.LogInformation("Repaired {Count} datasets", repairedCount);
+                return repairedCount;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to repair DataPoints for all datasets");
                 throw;
             }
         }

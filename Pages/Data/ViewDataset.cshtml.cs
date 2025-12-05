@@ -65,11 +65,14 @@ namespace SmartLab.Pages.Data
                     }
                 }
 
-                // Load data points
-                DataPoints = await _dataService.GetDataPointsAsync(Id);
-
+                // Parse data points directly from RawDataJson
+                DataPoints = ParseRawDataToDataPoints(dataset.RawDataJson);
+                _logger.LogInformation(
+                    "ViewDatasetModel.OnGetAsync: Parsed {DataPointCount} data points from RawDataJson for dataset {DatasetId}",
+                    DataPoints.Count, Id);
                 // Load available scripts
-                var currentUserId = GetCurrentUserId();
+                var currentUserId = GetCurrentUserId(); //WHY DO WE HAVE A USER ID YET
+
                 AvailableScripts = await _analysisService.GetAvailableScriptsAsync(currentUserId);
 
                 // Load analysis history
@@ -151,6 +154,51 @@ namespace SmartLab.Pages.Data
         private string GetCurrentUserId()
         {
             return User.Identity?.Name ?? "default_user";
+        }
+
+        private List<DataPointEntity> ParseRawDataToDataPoints(string? rawDataJson)
+        {
+            var result = new List<DataPointEntity>();
+
+            if (string.IsNullOrEmpty(rawDataJson))
+            {
+                return result;
+            }
+
+            try
+            {
+                // Just deserialize the raw lines - don't overthink it
+                var lines = System.Text.Json.JsonSerializer.Deserialize<List<string>>(rawDataJson);
+                if (lines == null || lines.Count == 0)
+                {
+                    return result;
+                }
+
+                // Simply display each line as a data point - minimal parsing just for display
+                int rowIndex = 0;
+                foreach (var line in lines)
+                {
+                    if (string.IsNullOrWhiteSpace(line))
+                        continue;
+
+                    // Just show the raw line - no complex parsing
+                    result.Add(new DataPointEntity
+                    {
+                        Timestamp = DateTime.UtcNow.AddSeconds(rowIndex),
+                        ParameterName = $"Line {rowIndex + 1}",
+                        Value = line,
+                        Unit = null,
+                        Notes = null,
+                        RowIndex = rowIndex++
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to parse RawDataJson");
+            }
+
+            return result;
         }
     }
 }

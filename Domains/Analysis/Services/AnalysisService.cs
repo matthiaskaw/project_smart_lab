@@ -270,8 +270,8 @@ namespace SmartLab.Domains.Analysis.Services
             DatasetEntity dataset,
             Dictionary<string, object> parameters)
         {
-            // Get data points for the dataset
-            var dataPoints = await _dataService.GetDataPointsAsync(dataset.Id);
+            // Parse data points directly from RawDataJson
+            var dataPoints = ParseRawDataToDataPoints(dataset.RawDataJson);
 
             // Parse measurement parameters if available
             Dictionary<string, object>? measurementParameters = null;
@@ -295,19 +295,48 @@ namespace SmartLab.Domains.Analysis.Services
                 dataSource = dataset.DataSource.ToString(),
                 parameters = parameters, // Script execution parameters
                 measurementParameters = measurementParameters, // Original measurement parameters
-                dataPoints = dataPoints.Select(dp => new
-                {
-                    timestamp = dp.Timestamp.ToString("o"),
-                    parameter = dp.ParameterName,
-                    value = dp.Value,
-                    unit = dp.Unit
-                }).ToList()
+                dataPoints = dataPoints
             };
 
-            return JsonSerializer.Serialize(inputData, new JsonSerializerOptions
+            return await Task.FromResult(JsonSerializer.Serialize(inputData, new JsonSerializerOptions
             {
                 WriteIndented = false
-            });
+            }));
+        }
+
+        private List<object> ParseRawDataToDataPoints(string? rawDataJson)
+        {
+            var result = new List<object>();
+
+            if (string.IsNullOrEmpty(rawDataJson))
+            {
+                return result;
+            }
+
+            try
+            {
+                // Just pass the raw lines - scripts do their own parsing
+                var lines = JsonSerializer.Deserialize<List<string>>(rawDataJson);
+                if (lines == null || lines.Count == 0)
+                {
+                    return result;
+                }
+
+                // Return raw lines as strings - scripts handle parsing
+                foreach (var line in lines)
+                {
+                    if (!string.IsNullOrWhiteSpace(line))
+                    {
+                        result.Add(line);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to parse RawDataJson");
+            }
+
+            return result;
         }
 
         private string CreateOutputDirectory(Guid datasetId, Guid resultId)
