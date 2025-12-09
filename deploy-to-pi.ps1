@@ -5,7 +5,7 @@ $REMOTE_USER = "smartlab"
 $REMOTE_HOST = "192.168.0.100"
 $REMOTE_PATH = "~"
 $APP_NAME = "smartlab_sqlite"
-$LOCAL_PUBLISH_DIR = "./bin/publish"
+$LOCAL_PUBLISH_DIR = "./bin/publish_arm64"
 
 Write-Host "Deploying SmartLab to Raspberry Pi..." -ForegroundColor Green
 
