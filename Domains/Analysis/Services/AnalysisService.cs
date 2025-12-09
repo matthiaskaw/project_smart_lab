@@ -256,14 +256,17 @@ namespace SmartLab.Domains.Analysis.Services
 
         public async Task<List<AnalysisScriptMetadata>> GetAvailableScriptsAsync(string userId)
         {
-            var builtInScripts = await _scriptManagementService.GetBuiltInScriptsAsync();
+            // var builtInScripts = await _scriptManagementService.GetBuiltInScriptsAsync();
             var userScripts = await _scriptManagementService.GetUserScriptsAsync(userId);
-            var sharedScripts = await _scriptManagementService.GetSharedScriptsAsync();
+            // var sharedScripts = await _scriptManagementService.GetSharedScriptsAsync();
 
-            return builtInScripts
-                .Concat(userScripts)
-                .Concat(sharedScripts)
-                .ToList();
+            // return builtInScripts
+            //     .Concat(userScripts)
+            //     .Concat(sharedScripts)
+            //     .ToList();
+
+            return userScripts;
+
         }
 
         private async Task<string> PrepareScriptInputAsync(

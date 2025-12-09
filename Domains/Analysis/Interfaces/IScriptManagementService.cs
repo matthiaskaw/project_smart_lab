@@ -8,19 +8,10 @@ namespace SmartLab.Domains.Analysis.Interfaces
     public interface IScriptManagementService
     {
         /// <summary>
-        /// Get all built-in (system-provided) scripts.
-        /// </summary>
-        Task<List<AnalysisScriptMetadata>> GetBuiltInScriptsAsync();
-
-        /// <summary>
         /// Get scripts uploaded by a specific user.
         /// </summary>
         Task<List<AnalysisScriptMetadata>> GetUserScriptsAsync(string userId);
 
-        /// <summary>
-        /// Get community-shared scripts.
-        /// </summary>
-        Task<List<AnalysisScriptMetadata>> GetSharedScriptsAsync();
 
         /// <summary>
         /// Get metadata for a specific script.

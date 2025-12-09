@@ -17,7 +17,6 @@ namespace SmartLab.Domains.Analysis.Services
         private readonly IScriptValidationService _validationService;
         private readonly ILogger<ScriptManagementService> _logger;
         private readonly string _scriptsBaseDirectory; // Physical absolute path
-        private readonly string _builtInScriptsDirectory;
         private readonly string _userScriptsDirectory;
         private readonly string _appRootDirectory; // Application root for virtual paths
 
@@ -40,31 +39,14 @@ namespace SmartLab.Domains.Analysis.Services
                 ? scriptsDir
                 : Path.Combine(_appRootDirectory, scriptsDir);
 
-            _builtInScriptsDirectory = Path.Combine(_scriptsBaseDirectory, "built-in");
+            //_builtInScriptsDirectory = Path.Combine(_scriptsBaseDirectory, "built-in");
             _userScriptsDirectory = Path.Combine(_scriptsBaseDirectory, "user-uploads");
 
             // Ensure directories exist
-            Directory.CreateDirectory(_builtInScriptsDirectory);
+            //Directory.CreateDirectory(_builtInScriptsDirectory);
             Directory.CreateDirectory(_userScriptsDirectory);
         }
 
-        public async Task<List<AnalysisScriptMetadata>> GetBuiltInScriptsAsync()
-        {
-            try
-            {
-                var entities = await _dbContext.ScriptMetadata
-                    .Where(s => s.IsBuiltIn)
-                    .OrderBy(s => s.DisplayName)
-                    .ToListAsync();
-
-                return entities.Select(e => MapEntityToMetadata(e)).ToList();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving built-in scripts");
-                return new List<AnalysisScriptMetadata>();
-            }
-        }
 
         public async Task<List<AnalysisScriptMetadata>> GetUserScriptsAsync(string userId)
         {
@@ -88,24 +70,7 @@ namespace SmartLab.Domains.Analysis.Services
                 return new List<AnalysisScriptMetadata>();
             }
         }
-
-        public async Task<List<AnalysisScriptMetadata>> GetSharedScriptsAsync()
-        {
-            try
-            {
-                var entities = await _dbContext.ScriptMetadata
-                    .Where(s => s.IsShared && !s.IsBuiltIn)
-                    .OrderBy(s => s.DisplayName)
-                    .ToListAsync();
-
-                return entities.Select(e => MapEntityToMetadata(e)).ToList();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving shared scripts");
-                return new List<AnalysisScriptMetadata>();
-            }
-        }
+        
 
         public async Task<AnalysisScriptMetadata?> GetScriptMetadataAsync(Guid scriptId)
         {
