@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import numpy as np
 
+import datetime
 
 
 
@@ -26,6 +27,7 @@ if __name__ == '__main__':
         input_data = json.load(sys.stdin)
         last_message = f"{input_data} {type(input_data)}"
         dataset_id = input_data['datasetId']
+        result_id = input_data['resultId']
         dataset_name = input_data['datasetName']
         data_points = input_data['dataPoints']
         params = input_data.get('parameters', {})
@@ -54,7 +56,7 @@ if __name__ == '__main__':
         plt.xlabel("x values [-]")
         plt.ylabel("y labels")
         # Save image
-        output_filename = f"test_result_{dataset_id[:8]}.png"
+        output_filename = f"test_result_{result_id[:8]}_{dataset_id[:8]}.png"
         output_path = Path(output_dir) / output_filename
         plt.savefig(output_path, dpi=150, bbox_inches='tight')
         plt.close()

@@ -117,7 +117,7 @@ namespace SmartLab.Domains.Analysis.Services
                 }
 
                 // Step 4: Transform dataset to JSON format for script
-                var inputJson = await PrepareScriptInputAsync(dataset, parameters);
+                var inputJson = await PrepareScriptInputAsync(dataset, parameters, result.Id);
 
                 // Step 5: Get script file path
                 var scriptPath = await _scriptManagementService.GetScriptPathAsync(scriptId);
@@ -268,7 +268,8 @@ namespace SmartLab.Domains.Analysis.Services
 
         private async Task<string> PrepareScriptInputAsync(
             DatasetEntity dataset,
-            Dictionary<string, object> parameters)
+            Dictionary<string, object> parameters,
+            Guid resultId)
         {
             // Parse data points directly from RawDataJson
             var dataPoints = ParseRawDataToDataPoints(dataset.RawDataJson);
@@ -291,6 +292,7 @@ namespace SmartLab.Domains.Analysis.Services
             {
                 datasetId = dataset.Id.ToString(),
                 datasetName = dataset.Name ?? "Unknown",
+                resultId = resultId.ToString(),
                 createdDate = dataset.CreatedDate,
                 dataSource = dataset.DataSource.ToString(),
                 parameters = parameters, // Script execution parameters

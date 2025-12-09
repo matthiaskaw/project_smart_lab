@@ -155,7 +155,8 @@
                                 </small>
                             </div>
                             <div>
-                                <form method="post" asp-page-handler="DeleteResult" asp-route-resultId="@result.Id" style="display:inline;">
+                                <form method="post" asp-page-handler="DeleteResult" asp-route-resultId="@result.Id" asp-routestyle="display:inline;">
+                                    <input type="hidden" asp-for="DatasetId" />
                                     <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this result?')">
                                         <i class="bi bi-trash"></i> Delete
                                     </button>

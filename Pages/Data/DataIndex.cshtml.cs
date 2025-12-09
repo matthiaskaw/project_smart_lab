@@ -97,25 +97,6 @@ public class IndexDatasetsModel : PageModel
         }
     }
 
-    public async Task<IActionResult> OnPostRepairDataPointsAsync()
-    {
-        try
-        {
-            _logger.LogInformation("Starting DataPoints repair for all datasets");
-            var repairedCount = await _dataService.RepairDataPointsForAllDatasetsAsync();
-
-            TempData["SuccessMessage"] = $"Successfully repaired {repairedCount} dataset(s)";
-            _logger.LogInformation("Repaired {Count} datasets", repairedCount);
-
-            return RedirectToPage();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to repair DataPoints");
-            TempData["ErrorMessage"] = "Failed to repair datasets";
-            return RedirectToPage();
-        }
-    }
 
     public async Task<IActionResult> OnGetDebugDataAsync(Guid id)
     {

@@ -50,7 +50,7 @@ namespace SmartLab.Pages.Data
 
                 Dataset = dataset;
                 DatasetId = Id;
-
+                _logger.LogInformation($"ViewDatasetModel.OnGetAsync: DatasetID {Id} {DatasetId}");
                 // Parse measurement parameters if available
                 if (!string.IsNullOrEmpty(dataset.ParametersJson))
                 {
@@ -127,7 +127,7 @@ namespace SmartLab.Pages.Data
         }
 
         public async Task<IActionResult> OnPostDeleteResultAsync(Guid resultId)
-        {
+        {   
             try
             {
                 var success = await _analysisService.DeleteAnalysisResultAsync(resultId);
