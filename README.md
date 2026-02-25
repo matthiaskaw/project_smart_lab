@@ -1,3 +1,7 @@
+# Implementation Guide of Devices usable in Smart Lab
+
+Following this link (https://github.com/matthiaskaw/smartlab_devices) gets you to a repository with devices, which are developed and work with Smart Lab
+
 # SmartLab - Laboratory Data Management System
 
 [![.NET](https://img.shields.io/badge/.NET-9.0-blue.svg)](https://dotnet.microsoft.com/)
