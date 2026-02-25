@@ -81,6 +81,8 @@ namespace SmartLab.Domains.Device.Services
                 var serverToClientSocketPath = _platformHelper.GetSocketFilePath(_serverToClientPipeName);
                 var clientToServerSocketPath = _platformHelper.GetSocketFilePath(_clientToServerPipeName);
 
+                _logger.LogInformation($"ServerToClient Path: {serverToClientSocketPath};;;; ClientToServerPath {clientToServerSocketPath}");
+
                 if (serverToClientSocketPath != null)
                 {
                     await _socketFileTracker.RegisterSocketFileAsync(serverToClientSocketPath);
@@ -88,6 +90,12 @@ namespace SmartLab.Domains.Device.Services
                 if (clientToServerSocketPath != null)
                 {
                     await _socketFileTracker.RegisterSocketFileAsync(clientToServerSocketPath);
+                }
+
+                if(clientToServerSocketPath == null || serverToClientSocketPath == null)
+                {
+                    throw new Exception($"clientToServerSocketPath is null = {string.IsNullOrEmpty(clientToServerSocketPath)}\nserverToClientSocketPath is null = {string.IsNullOrEmpty(serverToClientSocketPath)}");                    
+
                 }
             }
             catch (Exception ex)
@@ -117,7 +125,7 @@ namespace SmartLab.Domains.Device.Services
                 _serverToClientWaitTask = _serverToClient.WaitForConnectionAsync();
                 _clientToServerWaitTask = _clientToServer.WaitForConnectionAsync();
 
-                // Give a small delay to ensure socket files are physically created on disk
+                // Give a small delay to ensure socket files are physically created on diskF
                 await Task.Delay(200);
 
                 _logger.LogInformation("Socket files created and ready for client connection");

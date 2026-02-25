@@ -36,45 +36,46 @@ namespace SmartLab.Domains.Measurement.Models
         {
             try
             {
-                Logger.Instance.LogInfo($"ParameterizedDeviceMeasurement.RunAsync: Starting measurement {MeasurementName} with device {Device.DeviceName} and {Parameters.Count} parameters");
+                Logger.Instance.LogInfo($"DeviceMeasurement.RunAsync: Starting measurement {MeasurementName} with device {Device.DeviceName} and {Parameters.Count} parameters");
 
                 // await Device.InitializeAsync(); Initialization is done when measurement is created
 
                 if (IsCancelled)
                 {
-                    Logger.Instance.LogInfo($"ParameterizedDeviceMeasurement.RunAsync: Measurement {MeasurementName} was cancelled before data collection");
+                    Logger.Instance.LogInfo($"DeviceMeasurement.RunAsync: Measurement {MeasurementName} was cancelled before data collection");
                     return;
                 }
                 Logger.Instance.LogInfo($"DeviceMeasurement.RunAsync: Got parameters {Parameters}");
                 List<string> data;
                 StructuredMeasurementData structureddata = await Device.GetDataAsync();
                 data = structureddata.RawData;
+
                 // Check if device supports structured data with parameters
                 // if (Device is IParameterizedDevice paramDevice)
                 // {
-                //     Logger.Instance.LogInfo($"ParameterizedDeviceMeasurement.RunAsync: Getting structured data with parameters");
+                //     Logger.Instance.LogInfo($"DeviceMeasurement.RunAsync: Getting structured data with parameters");
                 //     var structuredData = await paramDevice.GetStructuredDataAsync(Parameters);
                 //     data = structuredData.RawData;
                 // }
                 // else
                 // {
-                //     Logger.Instance.LogInfo($"ParameterizedDeviceMeasurement.RunAsync: Device doesn't support parameters, using standard data collection");
+                //     Logger.Instance.LogInfo($"DeviceMeasurement.RunAsync: Device doesn't support parameters, using standard data collection");
                 //     data = await Device.GetDataAsync();
                 // }
 
                 if (!IsCancelled)
                 {
-                    Logger.Instance.LogInfo($"ParameterizedDeviceMeasurement.RunAsync: Measurement {MeasurementName} completed with {data.Count} data points");
+                    Logger.Instance.LogInfo($"DeviceMeasurement.RunAsync: Measurement {MeasurementName} completed with {data.Count} data points");
                     OnDataAvailable(data);
                 }
                 else
                 {
-                    Logger.Instance.LogInfo($"ParameterizedDeviceMeasurement.RunAsync: Measurement {MeasurementName} was cancelled during data collection");
+                    Logger.Instance.LogInfo($"DeviceMeasurement.RunAsync: Measurement {MeasurementName} was cancelled during data collection");
                 }
             }
             catch (Exception ex)
             {
-                Logger.Instance.LogError($"ParameterizedDeviceMeasurement.RunAsync: Error in measurement {MeasurementName}: {ex.Message}");
+                Logger.Instance.LogError($"DeviceMeasurement.RunAsync: Error in measurement {MeasurementName}: {ex.Message}");
                 throw;
             }
             finally
@@ -84,12 +85,12 @@ namespace SmartLab.Domains.Measurement.Models
                 {
                     try
                     {
-                        Logger.Instance.LogInfo($"ParameterizedDeviceMeasurement.RunAsync: Disposing device {Device.DeviceName} after measurement");
+                        Logger.Instance.LogInfo($"DeviceMeasurement.RunAsync: Disposing device {Device.DeviceName} after measurement");
                         await disposableDevice.DisposeAsync();
                     }
                     catch (Exception ex)
                     {
-                        Logger.Instance.LogError($"ParameterizedDeviceMeasurement.RunAsync: Error disposing device {Device.DeviceName}: {ex.Message}");
+                        Logger.Instance.LogError($"DeviceMeasurement.RunAsync: Error disposing device {Device.DeviceName}: {ex.Message}");
                     }
                 }
             }

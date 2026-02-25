@@ -38,12 +38,15 @@ namespace SmartLab.Domains.Device.Models
             IProxyDeviceProcessManager processManager,
             ILogger<ProxyDevice> logger)
         {
+
+
+            
             _communication = communication ?? throw new ArgumentNullException(nameof(communication));
 
             _processManager = processManager ?? throw new ArgumentNullException(nameof(processManager));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _cancellationTokenSource = new CancellationTokenSource();
-            
+            logger.LogInformation("ProxyDevice.Constructor: Initialized comms, pipes and logger");
         }
 
         public async Task CancelAsync()
@@ -90,7 +93,15 @@ namespace SmartLab.Domains.Device.Models
             if (_isInitialized && !_disposed)
             {
                 _logger.LogInformation($"ProxyDevice {DeviceID} already initialized, skipping", DeviceID);
+                _logger.LogInformation($"ProxyDevice.InitializeAsync: Trying to clean up");
                 return;
+            }
+
+            if (_disposed)
+            {
+                _logger.LogInformation("Reinitializing previously disposed ProxyDevice {DeviceId}", DeviceID);
+                await DisposeAsync();
+                _disposed = false;
             }
 
             try
@@ -109,6 +120,10 @@ namespace SmartLab.Domains.Device.Models
                     _cancellationTokenSource = new CancellationTokenSource();
                     _disposed = false;
                 }
+                
+                _logger.LogInformation("ProxyDevice.InitializeAsync: Disposing.");
+                await DisposeAsync();
+                _cancellationTokenSource = new CancellationTokenSource();
 
                 // STEP 1: Create named pipes FIRST (non-blocking)
                 _logger.LogInformation("Step 1: Creating named pipes for device {DeviceId}", DeviceID);
@@ -191,11 +206,12 @@ namespace SmartLab.Domains.Device.Models
             
             try
             {
-                // Ensure device is initialized for parameter discovery
+                //Ensure device is initialized for parameter discovery
                 if (!_isInitialized || !_communication.IsConnected || _disposed)
                 {
                     await InitializeAsync();
                 }
+                
                 _logger.LogInformation($"ProxyDevice.GetRequiredParametersAsync: Sending GETPARAMETER");
                 await _communication.SendCommandAsync("GETPARAMETERS", _cancellationTokenSource.Token);
                 var response = await _communication.ReceiveResponseAsync(_cancellationTokenSource.Token);
@@ -673,8 +689,11 @@ namespace SmartLab.Domains.Device.Models
                     // CancellationTokenSource already disposed, ignore
                 }
                 
-                await _processManager.DisposeAsync();
-                await _communication.DisposeAsync();
+                ValueTask processTask =  _processManager.DisposeAsync();
+                ValueTask communicationTask = _communication.DisposeAsync();
+                await processTask;
+                await communicationTask;
+                
             }
             catch (Exception ex)
             {

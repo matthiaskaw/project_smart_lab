@@ -86,10 +86,12 @@ namespace smarthome_webserver.Pages.Measurements
             try
             {
                 // Convert parameter values to dictionary with proper types
+                Logger.Instance.LogInfo("ConfigureParametersModel.OnPostAsync: Trying to convert parameter values to dictionaries");
                 var parameterDict = new Dictionary<string, object>();
 
                 for (int i = 0; i < Parameters.Count && i < ParameterValues.Count; i++)
                 {
+                    Logger.Instance.LogInfo($"ConfigureParametersModel.OnPostAsync: Entering loop to get parameters on post. At least one parameter");
                     var param = Parameters[i];
                     var value = ParameterValues[i];
 
@@ -124,7 +126,18 @@ namespace smarthome_webserver.Pages.Measurements
 
                 if (!ModelState.IsValid)
                 {
-                    return Page();
+
+                    Logger.Instance.LogInfo($"ConfigureParametersModel.OnPostAsync: Model no longer valid.");
+                    foreach (var modelError in ModelState)
+                    {
+                        foreach (var error in modelError.Value.Errors)
+                        {
+                            Logger.Instance.LogError($"ModelState Error - {modelError.Key}: {error.ErrorMessage}");
+                        }
+                    }
+                    Logger.Instance.LogInfo("ConfigureParameters POST: ModelState invalid, returning to page");
+
+                    //return Page();
                 }
 
                 Logger.Instance.LogInfo($"ConfigureParameters: Creating measurement '{MeasurementName}' on device {DeviceID} with {parameterDict.Count} parameters");

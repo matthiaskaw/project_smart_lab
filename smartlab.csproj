@@ -19,10 +19,11 @@
 
   <!-- Copy analysis-scripts directory to output -->
   <ItemGroup>
-    <Content Include="analysis-scripts\**\*.*">
+    <!-- <Content Include="analysis-scripts\**\*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
+    </Content> 
+    <Content Include="wwwroot\**" CopyToPublishDirectory="PreserveNewest"/>-->
   </ItemGroup>
 
 </Project>
